@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0614">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Swarmbreaker">
+  <meta name="description" content="A side-scrolling space shooter for phones.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <title>Swarmbreaker</title>
+</head>
+<body>
+  <div id="safe-probe" aria-hidden="true"></div>
+  <canvas id="game" aria-label="Swarmbreaker game"></canvas>
+
+  <div id="title" class="overlay">
+    <div class="panel">
+      <h1>SWARM<span>BREAKER</span></h1>
+      <p class="tag">prototype build · placeholder art</p>
+      <button class="primary" data-action="play">PLAY</button>
+      <div class="row">
+        <button data-setting="mode"></button>
+        <button data-setting="autoFire"></button>
+        <button data-setting="sound"></button>
+        <button data-action="fullscreen">FULLSCREEN</button>
+      </div>
+      <p class="help touch-help">Left thumb: move &middot; Right thumb: FIRE &middot; hold FOCUS for slow, precise moves &middot; BOMB clears bullets</p>
+      <p class="help key-help">WASD / Arrows move &middot; Space fire &middot; Shift focus &middot; B bomb &middot; P pause</p>
+      <p class="best">BEST <span data-bind="hi">0</span></p>
+    </div>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <div class="panel">
+      <h2>PAUSED</h2>
+      <button class="primary" data-action="resume">RESUME</button>
+      <div class="row">
+        <button data-setting="mode"></button>
+        <button data-setting="autoFire"></button>
+        <button data-setting="sound"></button>
+        <button data-action="fullscreen">FULLSCREEN</button>
+      </div>
+      <div class="row">
+        <button data-action="restart">RESTART</button>
+        <button data-action="menu">MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameover" class="overlay hidden">
+    <div class="panel">
+      <h2>GAME OVER</h2>
+      <p class="stats">SCORE <strong data-bind="score">0</strong> &middot; WAVE <strong data-bind="wave">0</strong></p>
+      <p class="best">BEST <span data-bind="hi">0</span></p>
+      <button class="primary" data-action="restart">PLAY AGAIN</button>
+      <button data-action="menu">MAIN MENU</button>
+    </div>
+  </div>
+
+  <div id="rotate">
+    <div class="phone"></div>
+    <p>Rotate your phone sideways to play</p>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

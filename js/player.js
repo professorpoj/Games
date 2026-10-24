@@ -1,4 +1,4 @@
-import { PLAYER, CONTROLS, GROUND_H, WINGMAN } from './config.js';
+import { PLAYER, CONTROLS, GROUND_H, WINGMAN, SHIELD } from './config.js';
 import { clamp, damp } from './utils.js';
 
 export class Player {
@@ -16,6 +16,8 @@ export class Player {
     this.respawnTimer = 0;
     this.wingLevel = 0;
     this.wingBombCd = 0;
+    this.shield = 1;        // meter, 0..1
+    this.shieldOn = false;
     // [0] flies above the ship, [1] below.
     this.wings = [-1, 1].map((side) => ({ side, x: 0, y: 0, px: 0, py: 0 }));
   }
@@ -31,9 +33,34 @@ export class Player {
     this.fireCd = 0;
     this.tilt = 0;
     this.wingBombCd = 0;
+    this.shieldOn = false;
     for (const w of this.wings) {
       w.x = w.px = this.x;
       w.y = w.py = this.y;
+    }
+  }
+
+  /** Tap to raise, tap again to drop early. */
+  toggleShield() {
+    if (this.shieldOn) {
+      this.shieldOn = false;
+      this.game.sfx.play('shieldDown');
+    } else if (this.alive && this.shield >= SHIELD.minToActivate) {
+      this.shieldOn = true;
+      this.game.sfx.play('shieldUp');
+    }
+  }
+
+  updateShield(dt) {
+    if (this.shieldOn) {
+      this.shield -= dt / SHIELD.duration;
+      if (this.shield <= 0) {
+        this.shield = 0;
+        this.shieldOn = false;
+        this.game.sfx.play('shieldDown');
+      }
+    } else {
+      this.shield = Math.min(1, this.shield + dt / (SHIELD.duration * SHIELD.rechargeRatio));
     }
   }
 
@@ -122,6 +149,7 @@ export class Player {
 
     this.tilt += (clamp(this.vy / PLAYER.speed, -1, 1) - this.tilt) * damp(10, dt);
     this.updateWings(dt);
+    this.updateShield(dt);
 
     this.fireCd -= dt;
     if (input.fire) {

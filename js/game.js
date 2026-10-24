@@ -1,6 +1,6 @@
 import {
   VIEW_H, MIN_ASPECT, MAX_ASPECT, MAX_DPR, SCROLL_SPEED, PLAYER,
-  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN,
+  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN, SHIELD,
 } from './config.js';
 import { Pool, compact, clamp, rand, damp, segDist2, TAU } from './utils.js';
 import { Input } from './input.js';
@@ -155,6 +155,8 @@ export class Game {
     this.timeScale = 1;
     this.player.power = 1;
     this.player.wingLevel = 0;
+    this.player.shield = 1;
+    this.player.shieldOn = false;
     this.director.reset(demo);
     if (demo) {
       this.player.alive = false;
@@ -309,9 +311,8 @@ export class Game {
     const p = this.player;
     if (!p.alive || this.bombs <= 0 || this.bomb) return;
     this.bombs--;
+    // Bombs only hit enemy ships; bullets are the shield's job.
     this.bomb = { x: p.x, y: p.y, r: 0, t: 0, dur: 0.75, hit: new Set() };
-    p.invuln = Math.max(p.invuln, 1.6);
-    this.clearEnemyBullets(true);
     this.shake = 12;
     this.flash = 0.25;
     this.sfx.play('bomb');
@@ -347,6 +348,10 @@ export class Game {
         return;
       }
       if (input.consumeBomb()) this.useBomb();
+      if (input.consumeShield()) this.player.toggleShield();
+    } else {
+      input.consumeBomb();
+      input.consumeShield();
     }
 
     this.updatePlayer(dt);
@@ -514,10 +519,6 @@ export class Game {
         this.damageEnemy(e, 14, e.x, e.y);
       }
     }
-    for (const b of this.eBullets.list) {
-      const dx = b.x - bm.x, dy = b.y - bm.y;
-      if (dx * dx + dy * dy < r2) b.dead = true;
-    }
     if (bm.t >= bm.dur) this.bomb = null;
   }
 
@@ -538,6 +539,22 @@ export class Game {
       if (dx * dx + dy * dy < R2) {
         b.dead = true;
         this.particles.add('glow', b.x, b.y, 0, -30, 0.3, 5, '#5dff7a');
+      }
+    }
+  }
+
+  /** Destroy every enemy bullet (missiles included) that touches the shield bubble. */
+  shieldBlock() {
+    const p = this.player;
+    for (const b of this.eBullets.list) {
+      if (b.dead) continue;
+      const rr = SHIELD.radius + b.r;
+      if (segDist2(p.x, p.y, b.px, b.py, b.x, b.y) < rr * rr) {
+        b.dead = true;
+        const a = Math.atan2(b.y - p.y, b.x - p.x);
+        this.particles.add('spark', p.x + Math.cos(a) * SHIELD.radius, p.y + Math.sin(a) * SHIELD.radius,
+          Math.cos(a) * 160, Math.sin(a) * 160, 0.2, 2, '#7df9ff');
+        this.sfx.play('deflect');
       }
     }
   }
@@ -579,6 +596,7 @@ export class Game {
       }
     }
 
+    if (p.alive && p.shieldOn) this.shieldBlock();
     if (!p.alive || p.invuln > 0 || p.entry > 0) return;
     const hr = PLAYER.hitRadius;
     for (const b of this.eBullets.list) {
@@ -664,6 +682,7 @@ export class Game {
     const p = this.player;
     if (p.alive) drawPlayer(ctx, L(p.px, p.x), L(p.py, p.y), p, t, this.input.focus && this.state === 'playing', alpha);
 
+    if (p.alive && p.shieldOn) this.drawShield(ctx, L(p.px, p.x), L(p.py, p.y), t);
     this.drawEnemyBullets(ctx, L);
     this.particles.render(ctx, this.sprites);
 
@@ -687,6 +706,26 @@ export class Game {
       drawHud(ctx, this);
       drawControls(ctx, this);
     }
+  }
+
+  drawShield(ctx, x, y, t) {
+    const p = this.player;
+    // Flicker as a warning when the meter is nearly empty.
+    if (p.shield < 0.2 && Math.floor(t * 16) % 2) return;
+    const r = SHIELD.radius + Math.sin(t * 9) * 1.5;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(this.sprites.glow('#7df9ff', r / 2), x - r, y - r, r * 2, r * 2);
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#7df9ff';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, TAU);
+    ctx.fill();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = '#c8fdff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
   }
 
   drawEnemyBullets(ctx, L) {

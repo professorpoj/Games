@@ -11,6 +11,7 @@ const KEYS = {
   fire: ['Space', 'KeyJ', 'KeyZ'],
   focus: ['ShiftLeft', 'ShiftRight', 'KeyK', 'KeyX'],
   bomb: ['KeyB', 'KeyL', 'KeyC'],
+  shield: ['KeyV', 'KeyE'],
   pause: ['Escape', 'KeyP'],
 };
 const GAME_KEYS = new Set(Object.values(KEYS).flat());
@@ -31,6 +32,7 @@ export class Input {
       fire: { x: 0, y: 0, r: 60, label: 'FIRE', color: '#4cc9f0', down: false },
       focus: { x: 0, y: 0, r: 40, label: 'FOCUS', color: '#c9b6ff', down: false },
       bomb: { x: 0, y: 0, r: 40, label: 'BOMB', color: '#ff5fd2', down: false },
+      shield: { x: 0, y: 0, r: 40, label: 'SHIELD', color: '#7df9ff', down: false },
       pause: { x: 0, y: 0, r: 22, label: 'II', color: '#ffffff', down: false },
     };
     this.leftZone = 0;
@@ -44,6 +46,7 @@ export class Input {
     this.fire = false;
     this.focus = false;
     this.bombQueued = false;
+    this.shieldQueued = false;
     this.pauseQueued = false;
     this.showTouch = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
     this.bind();
@@ -73,6 +76,7 @@ export class Input {
     Object.assign(b.fire, { x: R - 102, y: B - 112 });
     Object.assign(b.focus, { x: R - 226, y: B - 60 });
     Object.assign(b.bomb, { x: R - 82, y: B - 242 });
+    Object.assign(b.shield, { x: R - 232, y: B - 176 });
     Object.assign(b.pause, { x: R - 36, y: insets.t + 34 });
     this.stick.homeX = insets.l + 130;
     this.stick.homeY = B - 120;
@@ -86,7 +90,7 @@ export class Input {
     this.dragId = null;
     this.dragPos = null;
     this.dragDX = this.dragDY = 0;
-    this.bombQueued = this.pauseQueued = false;
+    this.bombQueued = this.shieldQueued = this.pauseQueued = false;
     for (const b of Object.values(this.btn)) b.down = false;
   }
 
@@ -95,6 +99,7 @@ export class Input {
     if (this.game.state === 'playing') e.preventDefault();
     if (down) {
       if (!e.repeat && KEYS.bomb.includes(e.code)) this.bombQueued = true;
+      if (!e.repeat && KEYS.shield.includes(e.code)) this.shieldQueued = true;
       if (!e.repeat && KEYS.pause.includes(e.code)) this.pauseQueued = true;
       this.keys.add(e.code);
     } else this.keys.delete(e.code);
@@ -117,6 +122,10 @@ export class Input {
       rec.kind = 'button';
       rec.button = 'bomb';
       this.bombQueued = true;
+    } else if (this.showTouch && hit(b.shield, p, 1.25)) {
+      rec.kind = 'button';
+      rec.button = 'shield';
+      this.shieldQueued = true;
     } else if (this.showTouch && hit(b.fire, p, 1.3)) {
       rec.kind = 'button';
       rec.button = 'fire';
@@ -178,7 +187,7 @@ export class Input {
       this.dragDX += p.x - rec.x;
       this.dragDY += p.y - rec.y;
       this.dragPos = p;
-    } else if (rec.kind === 'button' && rec.button !== 'bomb') {
+    } else if (rec.kind === 'button' && rec.button !== 'bomb' && rec.button !== 'shield') {
       const cur = rec.button && this.btn[rec.button];
       if (!cur || !hit(cur, p, 1.45)) rec.button = this.rollTarget(p);
     }
@@ -201,7 +210,7 @@ export class Input {
   poll() {
     const k = this.keys, any = (list) => list.some((c) => k.has(c));
     const b = this.btn;
-    b.fire.down = b.focus.down = b.bomb.down = false;
+    b.fire.down = b.focus.down = b.bomb.down = b.shield.down = false;
     for (const rec of this.pointers.values()) if (rec.button) b[rec.button].down = true;
 
     const s = this.stick;
@@ -237,6 +246,12 @@ export class Input {
   consumeBomb() {
     const v = this.bombQueued;
     this.bombQueued = false;
+    return v;
+  }
+
+  consumeShield() {
+    const v = this.shieldQueued;
+    this.shieldQueued = false;
     return v;
   }
 

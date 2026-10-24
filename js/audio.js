@@ -102,6 +102,15 @@ export class Sfx {
       case 'wingBomb':
         this.tone('triangle', 260, 120, 0.12, 0.06);
         break;
+      case 'shieldUp':
+        this.tone('sine', 300, 900, 0.18, 0.1);
+        break;
+      case 'shieldDown':
+        this.tone('sine', 700, 200, 0.2, 0.08);
+        break;
+      case 'deflect':
+        if (this.throttle(name, 0.05)) this.tone('triangle', 1500, 1100, 0.04, 0.03);
+        break;
       case 'extra':
         [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.1, i * 0.09));
         break;

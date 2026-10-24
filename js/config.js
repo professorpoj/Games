@@ -48,6 +48,15 @@ export const WINGMAN = {
   dropMul: 0.25,         // W drop chance = enemy drop chance x this
 };
 
+// Tap SHIELD to raise a bubble that destroys enemy bullets touching it.
+// It drains while up and recharges 5x slower than it drains.
+export const SHIELD = {
+  duration: 4,           // seconds a full meter lasts
+  rechargeRatio: 5,      // full recharge takes duration x this (20 s)
+  minToActivate: 0.15,   // meter needed to raise it again
+  radius: 30,
+};
+
 export const CONTROLS = {
   stickRadius: 62,       // logical units the knob can travel
   deadZone: 0.08,

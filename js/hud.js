@@ -1,4 +1,4 @@
-import { CONTROLS, PLAYER } from './config.js';
+import { CONTROLS, PLAYER, SHIELD } from './config.js';
 import { TAU, hexToRgba } from './utils.js';
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
@@ -57,6 +57,14 @@ export function drawHud(ctx, g) {
     shadowText(ctx, `W${g.player.wingLevel}`, L + PLAYER.maxPower * 11 + 6, T + 51, '#5dff7a');
   }
 
+  // Shield meter.
+  const p = g.player;
+  const ready = p.shield >= SHIELD.minToActivate;
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(L, T + 64, 42, 5);
+  ctx.fillStyle = p.shieldOn ? '#ffffff' : ready ? '#7df9ff' : '#3b6f73';
+  ctx.fillRect(L, T + 64, 42 * p.shield, 5);
+
   // Chain multiplier.
   if (g.chain > 1) {
     const a = Math.min(1, g.chainTimer * 2);
@@ -98,8 +106,7 @@ export function drawHud(ctx, g) {
   }
 }
 
-function drawButton(ctx, b, extra) {
-  const pressed = b.down;
+function drawButton(ctx, b, extra, pressed = b.down) {
   ctx.fillStyle = hexToRgba(b.color, pressed ? 0.42 : 0.14);
   ctx.strokeStyle = hexToRgba(b.color, pressed ? 0.95 : 0.55);
   ctx.lineWidth = pressed ? 3 : 2;
@@ -116,6 +123,20 @@ function drawButton(ctx, b, extra) {
     ctx.font = `700 11px ${SANS}`;
     ctx.fillText(extra, b.x, b.y + 9);
   }
+}
+
+function drawShieldButton(ctx, b, p) {
+  const ready = p.shield >= SHIELD.minToActivate;
+  const base = ctx.globalAlpha;
+  ctx.globalAlpha = base * (ready || p.shieldOn ? 1 : 0.45);
+  drawButton(ctx, b, p.shieldOn ? 'ON' : `${Math.floor(p.shield * 100)}%`, b.down || p.shieldOn);
+  // Meter ring around the button.
+  ctx.strokeStyle = p.shieldOn ? '#ffffff' : '#7df9ff';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, b.r + 6, -Math.PI / 2, -Math.PI / 2 + p.shield * TAU);
+  ctx.stroke();
+  ctx.globalAlpha = base;
 }
 
 export function drawControls(ctx, g) {
@@ -192,6 +213,7 @@ export function drawControls(ctx, g) {
 
   drawButton(ctx, b.fire, g.settings.autoFire ? 'AUTO' : '');
   drawButton(ctx, b.focus);
+  drawShieldButton(ctx, b.shield, g.player);
   ctx.globalAlpha *= g.bombs > 0 ? 1 : 0.4;
   drawButton(ctx, b.bomb, `x${g.bombs}`);
   ctx.globalAlpha = 1;

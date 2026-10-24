@@ -30,6 +30,24 @@ export const PLAYER = {
   maxPower: 4,
 };
 
+// Wingmen from rare green "W" pickups. Levels 1-6 add wingmen and rounds
+// (top, bottom, top, bottom...), levels 7+ give them bombs and then faster bombs.
+export const WINGMAN = {
+  gunLevels: 6,          // W pickups spent on wingmen + rounds (3 rounds each at 6)
+  maxLevel: 14,          // 6 gun levels + 8 bomb levels; later Ws give points
+  offsetX: -14,
+  offsetY: 36,
+  follow: 16,            // how tightly they trail the ship (higher = stiffer)
+  bulletDamage: 0.7,
+  bombDamage: 3,
+  bombRadius: 60,
+  bombSpeed: 520,
+  bombIntervalMax: 1.5,  // seconds between bombs at the first bomb levels
+  bombIntervalMin: 0.6,  // at max level
+  deathPenalty: 2,       // W levels lost when your ship is destroyed
+  dropMul: 0.25,         // W drop chance = enemy drop chance x this
+};
+
 export const CONTROLS = {
   stickRadius: 62,       // logical units the knob can travel
   deadZone: 0.08,

@@ -41,6 +41,18 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 - **Fixed 120 Hz simulation with render interpolation.** Movement and collisions behave the same on 60, 90 and 120 Hz screens.
 - **Precise ship.** It speeds up and slows down quickly, stops at the screen edges without bouncing, and has a tiny 4-unit hitbox. Fast bullets use swept collision so they can't pass through you between frames.
 - **Weapon power 1–4** from **P** pickups. **B** pickups add bombs. You lose one power level when you die.
+- **Wingmen** from rare green **W** pickups (Bulwarks drop one half the time). Each W upgrades them in this order:
+  1. Top wingman (1 round per shot)
+  2. Bottom wingman (1 round)
+  3. Top fires 2 rounds
+  4. Bottom fires 2 rounds
+  5. Top fires 3 rounds
+  6. Bottom fires 3 rounds
+  7. Top wingman starts launching bombs (splash damage that also clears nearby bullets)
+  8. Bottom wingman launches bombs too
+  9. and up: faster bombs, until level 14. After that each W is worth 2,000 points.
+
+  Wingmen can't be hit. Losing a ship costs 2 W levels. Tuning is under `WINGMAN` in `js/config.js`.
 - **Chain multiplier** for quick kills in a row, a bonus for wiping out a whole swarm, a bonus for clearing a wave, and an extra ship every 75,000 points.
 - Brief slow motion and screen shake when you're hit. After respawning you're invulnerable for a moment.
 

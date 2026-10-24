@@ -99,6 +99,9 @@ export class Sfx {
       case 'snipe':
         if (this.throttle(name, 0.05)) this.tone('square', 1800, 500, 0.06, 0.035);
         break;
+      case 'wingBomb':
+        this.tone('triangle', 260, 120, 0.12, 0.06);
+        break;
       case 'extra':
         [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.1, i * 0.09));
         break;

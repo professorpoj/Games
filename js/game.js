@@ -1,6 +1,6 @@
 import {
   VIEW_H, MIN_ASPECT, MAX_ASPECT, MAX_DPR, SCROLL_SPEED, PLAYER,
-  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW,
+  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN,
 } from './config.js';
 import { Pool, compact, clamp, rand, damp, segDist2, TAU } from './utils.js';
 import { Input } from './input.js';
@@ -14,7 +14,8 @@ import { Sfx } from './audio.js';
 import { drawHud, drawControls } from './hud.js';
 
 const BULLET_R = { orb: 5, big: 8, needle: 3.5, missile: 6 };
-const POWERUP_COLOR = { P: '#ffd23f', B: '#ff5fd2' };
+const POWERUP_COLOR = { P: '#ffd23f', B: '#ff5fd2', W: '#5dff7a' };
+const PLAYER_SHOT_R = { shot: 5, wing: 4, wbomb: 7 };
 const STORE = 'swarmbreaker.v1';
 
 function load() {
@@ -153,6 +154,7 @@ export class Game {
     this.gameOverTimer = 0;
     this.timeScale = 1;
     this.player.power = 1;
+    this.player.wingLevel = 0;
     this.director.reset(demo);
     if (demo) {
       this.player.alive = false;
@@ -194,14 +196,15 @@ export class Game {
 
   // ---------------------------------------------------------------- spawning
 
-  firePlayer(x, y, vx, vy, dmg) {
+  firePlayer(x, y, vx, vy, dmg, kind = 'shot') {
     const b = this.pBullets.spawn();
+    b.kind = kind;
     b.x = b.px = x;
     b.y = b.py = y;
     b.vx = vx;
     b.vy = vy;
     b.dmg = dmg;
-    b.r = 5;
+    b.r = PLAYER_SHOT_R[kind];
     return b;
   }
 
@@ -269,6 +272,8 @@ export class Game {
     } else if (Math.random() < e.def.drop) {
       this.spawnPowerup(Math.random() < 0.72 ? 'P' : 'B', e.x, e.y);
     }
+    // Rare wingman pickup (flagships drop one half the time).
+    if (Math.random() < (big ? 0.5 : e.def.drop * WINGMAN.dropMul)) this.spawnPowerup('W', e.x, e.y - 20);
     const wiped = e.swarm.remove(e, true);
     if (wiped && this.player.alive && e.swarm.total >= 4) {
       const bonus = e.swarm.total * 100;
@@ -295,6 +300,7 @@ export class Game {
     }
     this.lives--;
     p.power = Math.max(1, p.power - 1);
+    p.wingLevel = Math.max(0, p.wingLevel - WINGMAN.deathPenalty);
     this.chain = 0;
     if (this.lives <= 0) this.gameOverTimer = 2;
   }
@@ -473,6 +479,20 @@ export class Game {
         this.score += 1000;
         this.particles.text(p.x, p.y - 26, '+1000', '#ffd23f', 14);
       }
+    } else if (u.kind === 'W') {
+      if (p.wingLevel < WINGMAN.maxLevel) {
+        p.wingLevel++;
+        const lvl = p.wingLevel, gun = WINGMAN.gunLevels;
+        let msg;
+        if (lvl <= 2) msg = lvl === 1 ? 'WINGMAN!' : 'SECOND WINGMAN!';
+        else if (lvl <= gun) msg = `WINGMAN ${lvl % 2 ? 'TOP' : 'BOTTOM'} x${Math.ceil(lvl / 2)} SHOT`;
+        else if (lvl <= gun + 2) msg = 'WINGMAN BOMBS!';
+        else msg = lvl === WINGMAN.maxLevel ? 'WING BOMBS MAX' : 'WING BOMB RATE UP';
+        this.particles.text(p.x, p.y - 26, msg, '#5dff7a', 14);
+      } else {
+        this.score += 2000;
+        this.particles.text(p.x, p.y - 26, '+2000', '#5dff7a', 14);
+      }
     } else {
       this.bombs = Math.min(this.bombs + 1, 5);
       this.particles.text(p.x, p.y - 26, 'BOMB +1', '#ff5fd2', 14);
@@ -501,6 +521,27 @@ export class Game {
     if (bm.t >= bm.dur) this.bomb = null;
   }
 
+  /** Wingman bomb: splash damage and clears nearby enemy bullets. */
+  wingBlast(x, y) {
+    const R = WINGMAN.bombRadius, R2 = R * R;
+    this.particles.explosion(x, y, '#5dff7a', 1.2);
+    this.particles.ring(x, y, '#b6ffc4', 6, R, 0.3, 4);
+    this.sfx.play('explode');
+    this.shake = Math.max(this.shake, 4);
+    for (const e of this.enemies) {
+      if (e.dead) continue;
+      const dx = e.x - x, dy = e.y - y, rr = R + e.r;
+      if (dx * dx + dy * dy < rr * rr) this.damageEnemy(e, WINGMAN.bombDamage, e.x, e.y);
+    }
+    for (const b of this.eBullets.list) {
+      const dx = b.x - x, dy = b.y - y;
+      if (dx * dx + dy * dy < R2) {
+        b.dead = true;
+        this.particles.add('glow', b.x, b.y, 0, -30, 0.3, 5, '#5dff7a');
+      }
+    }
+  }
+
   collide() {
     const p = this.player, W = this.W;
     for (const b of this.pBullets.list) {
@@ -510,7 +551,8 @@ export class Game {
         const dx = b.x - e.x, dy = b.y - e.y, rr = e.r + b.r;
         if (dx * dx + dy * dy < rr * rr) {
           b.dead = true;
-          this.damageEnemy(e, b.dmg, b.x, b.y);
+          if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
+          else this.damageEnemy(e, b.dmg, b.x, b.y);
           break;
         }
       }
@@ -520,6 +562,10 @@ export class Game {
         const dx = b.x - m.x, dy = b.y - m.y, rr = m.r + b.r + 2;
         if (dx * dx + dy * dy < rr * rr) {
           b.dead = true;
+          if (b.kind === 'wbomb') {
+            this.wingBlast(b.x, b.y);
+            break;
+          }
           m.hp -= b.dmg;
           this.particles.hit(b.x, b.y, '#ff6ad5');
           if (m.hp <= 0) {
@@ -594,21 +640,29 @@ export class Game {
 
     ctx.globalCompositeOperation = 'lighter';
     const bolt = this.sprites.glow('#4cc9f0', 5);
+    const wingBolt = this.sprites.glow('#5dff7a', 4);
     for (const b of this.pBullets.list) {
       const x = L(b.px, b.x), y = L(b.py, b.y);
-      if (b.vy === 0) ctx.drawImage(bolt, x - 16, y - 6, 32, 12);
+      if (b.kind === 'wbomb') {
+        const s = 22 + Math.sin(t * 30) * 4;
+        ctx.drawImage(this.sprites.glow('#5dff7a', 7), x - s / 2, y - s / 2, s, s);
+        continue;
+      }
+      const img = b.kind === 'wing' ? wingBolt : bolt;
+      const w = b.kind === 'wing' ? 24 : 32, h = b.kind === 'wing' ? 9 : 12;
+      if (b.vy === 0) ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
       else {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(Math.atan2(b.vy, b.vx));
-        ctx.drawImage(bolt, -16, -6, 32, 12);
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
         ctx.restore();
       }
     }
     ctx.globalCompositeOperation = 'source-over';
 
     const p = this.player;
-    if (p.alive) drawPlayer(ctx, L(p.px, p.x), L(p.py, p.y), p, t, this.input.focus && this.state === 'playing');
+    if (p.alive) drawPlayer(ctx, L(p.px, p.x), L(p.py, p.y), p, t, this.input.focus && this.state === 'playing', alpha);
 
     this.drawEnemyBullets(ctx, L);
     this.particles.render(ctx, this.sprites);

@@ -52,6 +52,10 @@ export function drawHud(ctx, g) {
     ctx.fillStyle = i < power ? '#ffd23f' : 'rgba(255,255,255,0.18)';
     ctx.fillRect(L + i * 11, T + 54, 8, 5);
   }
+  if (g.player.wingLevel > 0) {
+    ctx.font = `800 11px ${SANS}`;
+    shadowText(ctx, `W${g.player.wingLevel}`, L + PLAYER.maxPower * 11 + 6, T + 51, '#5dff7a');
+  }
 
   // Chain multiplier.
   if (g.chain > 1) {

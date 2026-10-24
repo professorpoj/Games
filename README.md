@@ -2,6 +2,8 @@
 
 A side-scrolling space shooter for phones, played in landscape. Your ship flies right at a constant speed over a parallax alien wasteland while enemy swarms flock in and form geometric patterns.
 
+**Play it:** https://professorpoj.github.io/Games/
+
 This is a **mechanics prototype**. All the ships, bullets and pickups are placeholder shapes in different colors, ready to be swapped for real art later.
 
 ## Play it on your phone (GitHub Pages)

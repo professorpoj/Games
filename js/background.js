@@ -105,7 +105,9 @@ export class Background {
   /**
    * Stage n (every 5 waves): palette turns n steps around the 12-colour wheel
    * (30° each) and the near-layer decor switches to theme n, crossfading over
-   * a couple of seconds.
+   * a couple of seconds. The two cycles count independently: when the decor
+   * list runs out it starts over, but the colour wheel just keeps turning
+   * (13 themes vs 12 colours, so each decor round lands on new colours).
    */
   setStage(n, fade = true) {
     const hue = (((n * 30) % 360) + 360) % 360, decor = n % DECORS.length;

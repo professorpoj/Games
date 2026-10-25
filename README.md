@@ -100,7 +100,8 @@ Every 5 waves the landscape changes as the next wave starts, crossfading over ab
 | 46–50 | Crashed starship wrecks, smouldering |
 | 51–55 | Giant fossil skeletons: ribcages, spines, horned skulls |
 | 56–60 | Deep-space radio dish array |
-| 61+ | The cycle repeats (12 themes, in step with the 12 colour-wheel steps) |
+| 61–65 | Ancient alien monolith ruins with glowing glyphs |
+| 66+ | The decor list starts over from the crystals, but the colour wheel keeps turning: there are 13 decor themes and 12 colour steps, so each new round of decor gets a different set of colours (crystals return on red-violet at wave 66, the next colour at wave 131, and so on). |
 
 Ships, enemies, bullets and the HUD keep their colours. The decor themes live in `js/decor.js`.
 

@@ -554,4 +554,55 @@ export const DECORS = [
       }
     },
   },
+
+  // 13. Ancient alien monolith ruins: standing slabs with glowing glyphs and a broken arch.
+  {
+    name: 'monolith ruins', count: 6, halfWidth: 90,
+    make(r) {
+      const slabs = [];
+      const n = 2 + Math.floor(r() * 3);
+      for (let k = 0; k < n; k++) {
+        slabs.push({ dx: (k - (n - 1) / 2) * 26 + (r() - 0.5) * 8, w: 9 + r() * 7, h: 40 + r() * 60, tilt: (r() - 0.5) * 0.25, broken: r() < 0.35, glyphs: 2 + Math.floor(r() * 3) });
+      }
+      return { slabs, arch: r() < 0.4, side: r() < 0.5 ? -1 : 1 };
+    },
+    draw(g, cx, y0, p) {
+      if (p.arch) {
+        // Ruined gateway behind the slabs.
+        const ax = cx + p.side * 50;
+        g.fillStyle = '#2e2a44';
+        g.fillRect(ax - 22, y0 - 70, 9, 70);
+        g.fillRect(ax + 13, y0 - 52, 9, 52);
+        g.beginPath();
+        g.moveTo(ax - 22, y0 - 70);
+        g.quadraticCurveTo(ax, y0 - 96, ax + 14, y0 - 74);
+        g.lineTo(ax + 6, y0 - 70);
+        g.quadraticCurveTo(ax - 2, y0 - 84, ax - 13, y0 - 66);
+        g.closePath();
+        g.fill();
+        glow(g, ax, y0 - 40, 26, '#7dffcf');
+      }
+      for (const s of p.slabs) {
+        g.save();
+        g.translate(cx + s.dx, y0 + 2);
+        g.rotate(s.tilt);
+        const top = s.broken ? -s.h * 0.6 : -s.h;
+        poly(g, s.broken
+          ? [[-s.w / 2, 0], [-s.w / 2, top], [-s.w * 0.1, top - 6], [s.w * 0.2, top + 3], [s.w / 2, top - 4], [s.w / 2, 0]]
+          : [[-s.w / 2, 0], [-s.w / 2, top + 4], [0, top], [s.w / 2, top + 4], [s.w / 2, 0]], '#3a3550');
+        g.fillStyle = 'rgba(0,0,0,0.25)';
+        g.fillRect(s.w * 0.1, top + 4, s.w * 0.4, -top - 4);
+        // Glowing glyphs carved down the face.
+        g.fillStyle = '#7dffcf';
+        for (let i = 0; i < s.glyphs; i++) {
+          const gy = top + 10 + i * 12;
+          if (gy > -6) break;
+          g.fillRect(-s.w * 0.25, gy, s.w * 0.5, 1.5);
+          g.fillRect(-s.w * 0.05, gy - 3, 1.5, 7);
+        }
+        g.restore();
+        glow(g, cx + s.dx, y0 + top * 0.5, 14, '#7dffcf');
+      }
+    },
+  },
 ];

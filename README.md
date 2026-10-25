@@ -40,7 +40,7 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 
 - **Fixed 120 Hz simulation with render interpolation.** Movement and collisions behave the same on 60, 90 and 120 Hz screens.
 - **Precise ship.** It speeds up and slows down quickly, stops at the screen edges without bouncing, and has a tiny 4-unit hitbox. Fast bullets use swept collision so they can't pass through you between frames.
-- **Weapon power 1–4** from **P** pickups, which are deliberately rare (every P drop chance is scaled by `P_DROP_RATE` in `js/config.js`, currently 0.2). **B** pickups add bombs. **Losing a ship costs one P level** (the last overdrive step first, then a weapon power level).
+- **Weapon power 1–4** from **P** pickups, which are deliberately rare (every P drop chance is scaled by `P_DROP_RATE` in `js/config.js`, currently 0.35, i.e. 35% of the original rate). **B** pickups add bombs. **Losing a ship costs one P level** (the last overdrive step first, then a weapon power level).
 - **Overdrive** (P pickups after max power): at max power your gun fires 7 beam chains. Each extra **P** upgrades one chain, starting with the centre and working outward top/bottom. Damage is relative to the original blue bolt:
   - **Blue** (normal bolts): **0.8×**.
   - **Orange** (P #1–7 past max): **1×**.

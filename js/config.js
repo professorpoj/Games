@@ -142,6 +142,6 @@ export const SWARM_GROWTH = { perWave: 1, maxSize: 40 };
 
 export const ENEMY_BULLET_CAP = 380;
 export const EXTRA_LIFE_EVERY = 75000;
-// Every chance of a P (weapon power) pickup is scaled by this; 0.2 = 5x rarer.
-export const P_DROP_RATE = 0.2;
+// Every chance of a P (weapon power) pickup is scaled by this: 0.35 = 35% of the original rate.
+export const P_DROP_RATE = 0.35;
 export const CHAIN_WINDOW = 1.4;

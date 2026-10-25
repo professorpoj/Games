@@ -110,14 +110,18 @@ export class Director {
 
   /** Mix ground vehicles into the wave; each type is guaranteed on its debut wave. */
   addGroundUnits(w) {
-    const U = VEHICLES.unlock, picks = [];
+    const U = VEHICLES.unlock, must = [], picks = [];
     for (const type of ['truck', 'tank', 'train']) {
       const chance = { truck: 0.55, tank: 0.45, train: 0.4 }[type];
-      if (w === U[type] || (w > U[type] && Math.random() < chance)) picks.push(type);
+      // A new tank tier is guaranteed on its debut wave too.
+      const debut = w === U[type] || (type === 'tank' && VEHICLES.tank.tiers.some((t) => t.from === w));
+      if (debut) must.push(type);
+      else if (w > U[type] && Math.random() < chance) picks.push(type);
     }
     if (w >= 9 && Math.random() < 0.4) picks.push(choose(['truck', 'tank']));
     shuffle(picks);
-    for (const type of picks.slice(0, w >= 8 ? 3 : 2)) {
+    // Debuts go first so the cap never drops them.
+    for (const type of must.concat(picks).slice(0, w >= 8 ? 3 : 2)) {
       const at = randInt(0, this.queue.length);
       this.queue.splice(at, 0, { delay: rand(2.5, 5), ground: type });
     }

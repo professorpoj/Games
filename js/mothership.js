@@ -1,6 +1,7 @@
 // The mothership boss. Visit 1: heat-up laser + hangar swarms. Each return
-// visit adds abilities: 2 = side turrets, 3 = sweeping laser, 4+ = double
-// laser shots and homing missile salvos. Hull HP grows every visit.
+// visit adds abilities: 2 = side turrets + sweeping laser (its cone widens
+// every visit), 4+ = double laser shots and homing missile salvos. Hull HP
+// grows every visit.
 import { GROUND_H, MOTHERSHIP as M, PLAYER, WINGMAN, SWARM_GROWTH } from './config.js';
 import { shapesFor } from './formations.js';
 import { Swarm } from './swarm.js';
@@ -29,7 +30,7 @@ export class Mothership {
     this.missileTimer = 5;
     this.can = {
       turrets: visit >= 2,
-      sweep: visit >= 3,
+      sweep: visit >= M.sweepFrom,
       doubleShot: visit >= 4,
       missiles: visit >= 4,
     };
@@ -164,10 +165,11 @@ export class Mothership {
     const L = this.laser;
     L.state = 'charge';
     L.timer = time;
-    // From visit 3 some shots sweep across the screen instead of firing straight.
+    // From the sweep visit on, some shots sweep a cone instead of firing straight.
     L.sweepDir = this.can.sweep && Math.random() < 0.5 ? choose([-1, 1]) : 0;
-    L.a0 = Math.PI + L.sweepDir * 0.42;
-    L.a1 = Math.PI - L.sweepDir * 0.42;
+    const half = Math.min(M.sweepAngle + (this.visit - M.sweepFrom) * M.sweepWiden, M.sweepMax) * Math.PI / 180;
+    L.a0 = Math.PI + L.sweepDir * half;
+    L.a1 = Math.PI - L.sweepDir * half;
     this.game.sfx.play('laserCharge');
   }
 

@@ -98,6 +98,12 @@ export const MOTHERSHIP = {
   laserHalfWidth: 16,
   laserCooldown: [2.6, 3.6],
   swarmInterval: [7, 9.5],
+  // Sweeping laser shots: the beam sweeps a cone centred on horizontal. Degrees
+  // above AND below horizontal: 10 on the first sweep visit, +5 each visit after.
+  sweepFrom: 2,          // first visit with sweeps (the one after wave 10)
+  sweepAngle: 10,
+  sweepWiden: 5,
+  sweepMax: 40,
   retreatBonus: 5000,    // x visit number
 };
 
@@ -111,8 +117,16 @@ export const VEHICLES = {
   zone: 0.6,             // vehicles hold, fire and aim only in the screen's right 40% (from 60% across)
   truck: { hp: 16, score: 800, salvo: 3, interval: [2.6, 3.4], aoe: 34, life: 28 },
   tank: { hp: 60, score: 2500, interval: [3.2, 4.2], aim: 1.3, lock: 0.35, shellSpeed: 340, aoe: 58, life: 32,
-    range: [0.55, 0.75], restation: [4, 7] }, // parks at random spots 45%-25% in from the right edge; fires across the whole screen
-  train: { locoHp: 40, moduleHp: 14, score: 3000, moduleScore: 500, modules: 3, interval: [3.8, 5.2], missileSpeed: 100, life: 38 },
+    range: [0.55, 0.75], restation: [4, 7], // parks at random spots 45%-25% in from the right edge; fires across the whole screen
+    // Three tiers. aimMul = targeting speed (turret traverse, and how fast it locks
+    // on and fires), shellMul = shell speed, both x the original green tank.
+    // `from` = first wave the tier can appear (it's guaranteed on that wave).
+    tiers: [
+      { name: 'blue-grey', from: 4, aimMul: 0.7, shellMul: 1 },
+      { name: 'purple', from: 8, aimMul: 1, shellMul: 1.25 },
+      { name: 'blood red', from: 12, aimMul: 1.5, shellMul: 1.5 },
+    ] },
+  train: { locoHp: 20, moduleHp: 14, score: 3000, moduleScore: 500, modules: 3, interval: [3.8, 5.2], missileSpeed: 100, life: 38 },
   unlock: { truck: 2, tank: 4, train: 6 },  // first wave each type appears (guaranteed)
 };
 

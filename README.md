@@ -79,8 +79,8 @@ Fast ground units race in from off-screen left (a blinking **!** chevron at the 
 | Vehicle | First wave | Behaviour and weapon |
 |---|---|---|
 | Mortar truck (yellow) | 2 | Soft long-travel suspension; weaves around its spot. Fires 3-shell mortar salvos that arc up and **airburst** where you're heading. A dashed orange ring marks each burst point and fills in as the shell arrives. Shells can be shot down. |
-| Turbine tank (green) | 4 | Six stiff road wheels, scrolling tracks and gas-turbine exhaust that flares with throttle. Parks at random spots between 45% and 25% in from the right edge, moving to a new one every few seconds. It swings its huge turret anywhere and **shells you across the entire screen** (exempt from the right-40% targeting limit), and paints a **red crosshair** with a blast-radius circle where it predicts you'll be. The crosshair locks and flashes, then a fast tracer shell detonates there in a big blast. Heavy muzzle blast and recoil. |
-| Missile train (red) | 6 | A locomotive pulling 3 launcher cars (4 from wave 10) on spring couplings that bunch up and stretch apart. Each car fires **wave-path missiles**: they pop up, lock a heading, then snake toward you along a sine wave that slowly homes. Dotted lines preview the path ahead. Missiles can be shot down. Destroying a launcher car disables it; destroying the locomotive blows up the whole train, car by car. |
+| Turbine tank (3 tiers) | 4 | Six stiff road wheels, scrolling tracks and gas-turbine exhaust that flares with throttle. Parks at random spots between 45% and 25% in from the right edge, moving to a new one every few seconds. It swings its huge turret anywhere and **shells you across the entire screen** (exempt from the right-40% targeting limit), and paints a **red crosshair** with a blast-radius circle where it predicts you'll be. The crosshair locks and flashes, then a fast tracer shell detonates there in a big blast. Heavy muzzle blast and recoil. Comes in **three tiers**, each with faster targeting (turret swing plus the time from crosshair to lock to shot) and a faster shell. **Blue-grey** (from wave 4): 0.7× targeting, 1× shell. **Purple** (from wave 8): 1× targeting, 1.25× shell. **Dark blood red** (from wave 12): 1.5× targeting, 1.5× shell. A new tier always shows up on its debut wave; after that each tank is a random unlocked tier. |
+| Missile train (red) | 6 | A locomotive pulling 3 launcher cars (4 from wave 10) on spring couplings that bunch up and stretch apart. Each car fires **wave-path missiles**: they pop up, lock a heading, then snake toward you along a sine wave that slowly homes. Dotted lines preview the path ahead. Missiles can be shot down. Destroying a launcher car disables it; destroying the locomotive (20 HP, half its old toughness) blows up the whole train, car by car. |
 
 The shield stops all of this ordnance (shells fizzle on the bubble), and the bomb damages vehicles. Tuning is under `VEHICLES` in `js/config.js`.
 
@@ -135,11 +135,11 @@ It also launches small swarms from its hangar. Shoot the hull enough (its meter 
 | Visit | Adds |
 |---|---|
 | Mk 1 (after wave 5) | Heat-up laser, hangar swarms of Stingers |
-| Mk 2 (after wave 10) | Side turrets firing aimed spreads; Darters join the swarms |
-| Mk 3 (after wave 15) | Some laser shots sweep across the screen; Whirlers and Seekers join the swarms |
+| Mk 2 (after wave 10) | Side turrets firing aimed spreads; some laser shots **sweep a cone** of 10° above to 10° below horizontal; Darters join the swarms |
+| Mk 3 (after wave 15) | Whirlers and Seekers join the swarms |
 | Mk 4+ | Fires the laser twice in a row; homing missile salvos |
 
-Its laser also charges faster on every visit. Tuning is under `MOTHERSHIP` in `js/config.js`.
+Its laser also charges faster on every visit, and the sweep cone widens by 5° each way per visit (15° on Mk 3, 20° on Mk 4, … up to 40°). Tuning is under `MOTHERSHIP` in `js/config.js`.
 
 ### Enhanced (Mk II) enemies
 

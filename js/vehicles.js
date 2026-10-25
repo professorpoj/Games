@@ -431,10 +431,34 @@ export class Truck extends Vehicle {
 
 // ---------------------------------------------------------------- 2. turbine tank
 
+// Paint per tier (V.tank.tiers): blue-grey, purple, dark blood red.
+const TANK_COLORS = [
+  { hull: '#7b8a9c', dark: '#3b4552', rim: '#5a6878', strut: '#454c56', barrel: '#5d6b7b' },
+  { hull: '#8c62c4', dark: '#43295f', rim: '#64478c', strut: '#4a3d5c', barrel: '#6a4a96' },
+  { hull: '#9a2228', dark: '#45090c', rim: '#6a171b', strut: '#4a2a2c', barrel: '#74191e' },
+];
+
+/** The newest tier on its debut wave, otherwise any tier unlocked so far. */
+function pickTankTier(wave) {
+  const T = V.tank.tiers;
+  const debut = T.findIndex((t) => t.from === wave);
+  if (debut >= 0) return debut;
+  const open = T.filter((t) => wave >= t.from);
+  return open.length ? T.indexOf(open[Math.floor(Math.random() * open.length)]) : 0;
+}
+
 export class Tank extends Vehicle {
   constructor(game) {
     super(game, V.tank, 230);
     this.kind = 'tank';
+    this.tier = pickTankTier(game.director.wave);
+    const tier = V.tank.tiers[this.tier];
+    this.aimMul = tier.aimMul;
+    this.shellMul = tier.shellMul;
+    // Faster targeting = less time between the crosshair appearing, locking and firing.
+    this.aimTime = V.tank.aim / tier.aimMul;
+    this.lockTime = V.tank.lock / tier.aimMul;
+    this.colors = TANK_COLORS[this.tier];
     // Six stiff road wheels; heavy, well damped hull.
     this.ch = new Chassis({
       wheels: [-40, -24, -8, 8, 24, 40].map((lx) => [lx, 7]),
@@ -488,13 +512,13 @@ export class Tank extends Vehicle {
     if (Math.random() < 0.25) g.particles.smoke(ex.x - 10, ex.y, -rand(60, 120), rand(-20, 0), 4, 0.8, '#4a3d4f');
 
     const piv = this.pivot();
-    const S = V.tank.shellSpeed * g.difficulty.speed;
+    const S = V.tank.shellSpeed * this.shellMul * g.difficulty.speed;
     if (this.state === 'reload') {
-      if (p.alive) this.aimAt(piv, p.x, p.y, dt, 1.4);
+      if (p.alive) this.aimAt(piv, p.x, p.y, dt, 1.4 * this.aimMul);
       this.timer -= dt * g.difficulty.fire;
       if (this.timer <= 0 && this.canFire(this.x)) {
         this.state = 'aim';
-        this.timer = V.tank.aim;
+        this.timer = this.aimTime;
         g.sfx.play('charge');
       }
     } else if (this.state === 'aim') {
@@ -503,13 +527,13 @@ export class Tank extends Vehicle {
         this.state = 'reload';
         this.timer = 2;
       } else {
-        if (this.timer > V.tank.lock) {
+        if (this.timer > this.lockTime) {
           // Lead the target: where the player will be when the shell arrives.
           const T = Math.hypot(p.x - piv.x, p.y - piv.y) / S;
           this.aimX = clamp(p.x + p.vx * T, 10, g.W - 10);
           this.aimY = clamp(p.y + p.vy * T, 10, g.H - 70);
         }
-        this.aimAt(piv, this.aimX, this.aimY, dt, 2.2);
+        this.aimAt(piv, this.aimX, this.aimY, dt, 2.2 * this.aimMul);
         if (this.timer <= 0) this.fire(S);
       }
     }
@@ -552,13 +576,13 @@ export class Tank extends Vehicle {
   }
 
   draw(ctx, alpha, t) {
-    const ch = this.ch, part = this.parts[0];
-    const hull = part.flash > 0 ? '#ffffff' : '#7f9c5a';
+    const ch = this.ch, part = this.parts[0], C = this.colors;
+    const hull = part.flash > 0 ? '#ffffff' : C.hull;
     // Track loop around the road wheels, treads scroll with distance travelled.
     const w0 = ch.wheels[0], w5 = ch.wheels[5];
     const a = ch.point(-50, 0, alpha), b = ch.point(50, 0, alpha);
     const ya = w0.py + (w0.y - w0.py) * alpha, yb = w5.py + (w5.y - w5.py) * alpha;
-    drawWheelsAndStruts(ctx, ch, alpha, '#5b6e40', '#4a4f3a');
+    drawWheelsAndStruts(ctx, ch, alpha, C.rim, C.strut);
     ctx.strokeStyle = '#2a2a24';
     ctx.lineWidth = 5;
     ctx.setLineDash([5, 4]);
@@ -572,8 +596,8 @@ export class Tank extends Vehicle {
     ctx.stroke();
     ctx.setLineDash([]);
     // Hull with sloped glacis, turbine housings at the rear.
-    bodyPoly(ctx, ch, [[-60, -2], [58, -2], [62, -12], [44, -24], [-54, -24], [-62, -14]], alpha, hull, '#3d4a2a');
-    bodyPoly(ctx, ch, [[-66, -18], [-54, -18], [-54, -8], [-66, -8]], alpha, '#4a4f3a');
+    bodyPoly(ctx, ch, [[-60, -2], [58, -2], [62, -12], [44, -24], [-54, -24], [-62, -14]], alpha, hull, C.dark);
+    bodyPoly(ctx, ch, [[-66, -18], [-54, -18], [-54, -8], [-66, -8]], alpha, C.strut);
     const ex = ch.point(-66, -13, alpha);
     const fl = 10 + Math.random() * 8;
     ctx.globalCompositeOperation = 'lighter';
@@ -582,7 +606,7 @@ export class Tank extends Vehicle {
     // Turret and long barrel with muzzle brake.
     const piv = this.pivot(alpha);
     const bx = piv.x + Math.cos(this.turret) * 64, by = piv.y + Math.sin(this.turret) * 64;
-    ctx.strokeStyle = part.flash > 0 ? '#ffffff' : '#56683c';
+    ctx.strokeStyle = part.flash > 0 ? '#ffffff' : C.barrel;
     ctx.lineWidth = 7;
     ctx.beginPath();
     ctx.moveTo(piv.x, piv.y);
@@ -594,10 +618,10 @@ export class Tank extends Vehicle {
     ctx.moveTo(piv.x + Math.cos(this.turret) * 56, piv.y + Math.sin(this.turret) * 56);
     ctx.lineTo(bx, by);
     ctx.stroke();
-    bodyPoly(ctx, ch, [[-28, -24], [18, -24], [12, -40], [-20, -44]], alpha, hull, '#3d4a2a');
+    bodyPoly(ctx, ch, [[-28, -24], [18, -24], [12, -40], [-20, -44]], alpha, hull, C.dark);
     // Barrel tip glows hot while aiming.
     if (this.state === 'aim') {
-      const k = 1 - this.timer / V.tank.aim;
+      const k = 1 - this.timer / this.aimTime;
       ctx.globalCompositeOperation = 'lighter';
       ctx.drawImage(this.game.sprites.glow('#ff6a3c', 6), bx - 8 - k * 10, by - 8 - k * 10, 16 + k * 20, 16 + k * 20);
       ctx.globalCompositeOperation = 'source-over';
@@ -606,7 +630,7 @@ export class Tank extends Vehicle {
   }
 
   drawOverlay(ctx, t) {
-    if (this.state === 'aim') drawCrosshair(ctx, this.aimX, this.aimY, V.tank.aoe, t, this.timer <= V.tank.lock);
+    if (this.state === 'aim') drawCrosshair(ctx, this.aimX, this.aimY, V.tank.aoe, t, this.timer <= this.lockTime);
   }
 }
 

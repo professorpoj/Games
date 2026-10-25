@@ -127,7 +127,7 @@ export const HOMING = {
   turn: 7,               // turn rate, radians/s
   life: 4,
   bonus: 5000,           // points for an H once maxed
-  dropChance: 0.005,     // any destroyed enemy (or vehicle / train car) has a 0.5% chance to drop an H
+  dropChance: 0.0005,    // any destroyed enemy (or vehicle / train car) has a 0.05% chance to drop an H
 };
 
 export const CONTROLS = {

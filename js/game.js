@@ -229,6 +229,7 @@ export class Game {
     if (this.player.alive) this.addScore(score, x, y);
     this.shake = Math.max(this.shake, v ? 12 : 6);
     this.sfx.play('bigExplode');
+    if (Math.random() < HOMING.dropChance) this.spawnPowerup('H', x + 15, y - 30);
     if (!v) return;
     if (v.kind === 'tank') {
       this.maybeDropP(x, y - 20);
@@ -339,6 +340,8 @@ export class Game {
       this.maybeDropP(e.x, e.y, drop * 0.72);
       if (Math.random() < drop * 0.28) this.spawnPowerup('B', e.x, e.y);
     }
+    // Very rare homing-missile pickup from any enemy.
+    if (Math.random() < HOMING.dropChance) this.spawnPowerup('H', e.x, e.y + 20);
     // Rare wingman pickup (flagships drop one half the time).
     if (Math.random() < (big ? 0.5 : e.def.drop * WINGMAN.dropMul)) this.spawnPowerup('W', e.x, e.y - 20);
     const wiped = e.swarm.remove(e, true);

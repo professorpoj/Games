@@ -76,7 +76,8 @@ export class Director {
     if (this.demo && this.wave > 6) this.wave = 1;
     this.applyDifficulty();
     // Every 5 waves the landscape palette turns one step (30°) around the colour wheel.
-    this.game.bg.setHue(Math.floor((this.wave - 1) / 5) * 30);
+    // The title-screen demo loops waves 1-6, so it keeps the original palette.
+    if (!this.demo) this.game.bg.setHue(Math.floor((this.wave - 1) / 5) * 30);
     const w = this.wave;
     const nSwarms = w <= 2 ? 2 : clamp(2 + Math.floor((w - 2) / 2), 2, 5);
     const available = TEMPLATES.filter((t) => t.unlock <= w);

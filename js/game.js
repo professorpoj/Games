@@ -18,7 +18,7 @@ import { drawHud, drawControls } from './hud.js';
 
 const BULLET_R = { orb: 5, big: 8, needle: 3.5, missile: 6 };
 const POWERUP_COLOR = { P: '#ffd23f', B: '#ff5fd2', W: '#5dff7a' };
-const PLAYER_SHOT_R = { shot: 5, red: 5, wing: 4, wbomb: 7 };
+const PLAYER_SHOT_R = { shot: 5, orange: 5, red: 5, wing: 4, wbomb: 7 };
 const NEON = '#ff3ec8';
 const STORE = 'swarmbreaker.v1';
 
@@ -367,6 +367,7 @@ export class Game {
     // the ship's own weapon power is kept.
     for (const w of p.wings) if (w.level) this.particles.explosion(w.x, w.y, '#5dff7a', 0.8);
     p.clearWings();
+    p.losePowerLevel();
     this.chain = 0;
     if (this.lives <= 0) this.gameOverTimer = 2;
   }
@@ -653,12 +654,14 @@ export class Game {
       if (p.power < PLAYER.maxPower) {
         p.power++;
         this.particles.text(p.x, p.y - 26, p.power === PLAYER.maxPower ? 'MAX POWER' : 'POWER UP', '#ffd23f', 14);
-      } else if (p.overdrive < OVERDRIVE.chains * 2) {
-        // Overdrive: upgrade the next beam chain (red first, then neon laser).
+      } else if (p.overdrive < Player.maxOverdrive) {
+        // Overdrive: upgrade the next beam chain (orange, then red, then two neon lasers).
         p.overdrive++;
-        const n = p.overdrive, C = OVERDRIVE.chains;
-        const msg = n <= C ? `RED BEAM ${n}/${C}` : `NEON LASER ${n - C}/${C}`;
-        this.particles.text(p.x, p.y - 26, msg, n <= C ? '#ff3b3b' : NEON, 14);
+        const n = p.overdrive, C = OVERDRIVE.chains, L = OVERDRIVE.laserChains.length;
+        const [msg, col] = n <= C ? [`ORANGE BEAM ${n}/${C}`, '#ff9a2e']
+          : n <= C * 2 ? [`RED BEAM ${n - C}/${C}`, '#ff3b3b']
+          : [`NEON LASER ${n - C * 2}/${L}`, NEON];
+        this.particles.text(p.x, p.y - 26, n === Player.maxOverdrive ? 'WEAPON MAXED' : msg, col, 14);
       } else {
         this.score += 1000;
         this.particles.text(p.x, p.y - 26, '+1000', '#ffd23f', 14);
@@ -943,6 +946,7 @@ export class Game {
     const bolt = this.sprites.glow('#4cc9f0', 5);
     const wingBolt = this.sprites.glow('#5dff7a', 4);
     const redBolt = this.sprites.glow('#ff3b3b', 5);
+    const orangeBolt = this.sprites.glow('#ff9a2e', 5);
     for (const b of this.pBullets.list) {
       const x = L(b.px, b.x), y = L(b.py, b.y);
       if (b.kind === 'wbomb') {
@@ -950,7 +954,7 @@ export class Game {
         ctx.drawImage(this.sprites.glow('#5dff7a', 7), x - s / 2, y - s / 2, s, s);
         continue;
       }
-      const img = b.kind === 'wing' ? wingBolt : b.kind === 'red' ? redBolt : bolt;
+      const img = b.kind === 'wing' ? wingBolt : b.kind === 'red' ? redBolt : b.kind === 'orange' ? orangeBolt : bolt;
       const w = b.kind === 'wing' ? 24 : 32, h = b.kind === 'wing' ? 9 : 12;
       if (b.vy === 0) ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
       else {

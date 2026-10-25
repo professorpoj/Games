@@ -39,11 +39,13 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 
 - **Fixed 120 Hz simulation with render interpolation.** Movement and collisions behave the same on 60, 90 and 120 Hz screens.
 - **Precise ship.** It speeds up and slows down quickly, stops at the screen edges without bouncing, and has a tiny 4-unit hitbox. Fast bullets use swept collision so they can't pass through you between frames.
-- **Weapon power 1–4** from **P** pickups, which are deliberately rare (every P drop chance is scaled by `P_DROP_RATE` in `js/config.js`, currently 0.2). **B** pickups add bombs. Weapon power is kept when you lose a ship.
-- **Overdrive** (P pickups after max power): at max power your gun fires 7 beam chains. Each extra **P** upgrades one chain, starting with the centre and working outward top/bottom:
-  - **Red** (P #1–7 past max): that chain fires red bolts doing **2×** the blue damage.
-  - **Hot neon pink laser** (P #8–14): that chain becomes a continuous laser. It ramps to full power in 0.15 s when you press FIRE and stays on while you hold it, steadily melting everything in its path (enemies, vehicles, the mothership, shootable missiles) at **3×** the blue chain's damage rate, with molten sparks and embers where it cuts.
-  - After all 7 chains are neon, P is worth 1,000 points. The HUD pips show each chain's tier (blue / red / pink). Overdrive is kept when you lose a ship.
+- **Weapon power 1–4** from **P** pickups, which are deliberately rare (every P drop chance is scaled by `P_DROP_RATE` in `js/config.js`, currently 0.2). **B** pickups add bombs. **Losing a ship costs one P level** (the last overdrive step first, then a weapon power level).
+- **Overdrive** (P pickups after max power): at max power your gun fires 7 beam chains. Each extra **P** upgrades one chain, starting with the centre and working outward top/bottom. Damage is relative to the original blue bolt:
+  - **Blue** (normal bolts): **0.8×**.
+  - **Orange** (P #1–7 past max): **1×**.
+  - **Red** (P #8–14): **1.5×**.
+  - **Hot neon pink laser** (P #15–16, the 4th tier): the two inner straight chains become continuous lasers (at most **2 lasers**). Each ramps to full power in 0.15 s when you press FIRE and stays on while you hold it, steadily melting everything in its path (enemies, vehicles, the mothership, shootable missiles) at **2×** the chain's damage rate, with molten sparks and embers where it cuts.
+  - That's the upgrade cap: after it, P is worth 1,000 points. The HUD pips show each chain's tier (blue / orange / red / pink).
 - **Wingmen** from rare green **W** pickups (Bulwarks drop one half the time). There are two wingmen, top and bottom, and each has its own level:
   - Levels 1–3: 1, 2 or 3 rounds per shot
   - Level 4: carries bombs (splash damage that also clears nearby bullets). Wingmen **launch them automatically whenever more than 7 enemies are on screen**, aimed at the densest cluster ahead, and hold them otherwise.

@@ -51,7 +51,7 @@ export function drawHud(ctx, g) {
   if (power >= PLAYER.maxPower && g.player.overdrive > 0) {
     // Overdrive: one pip per beam chain, coloured by tier (blue / red / neon).
     for (let i = 0; i < OVERDRIVE.chains; i++) {
-      ctx.fillStyle = ['#4cc9f0', '#ff3b3b', '#ff3ec8'][g.player.chainTier(i)];
+      ctx.fillStyle = ['#4cc9f0', '#ff9a2e', '#ff3b3b', '#ff3ec8'][g.player.chainTier(i)];
       ctx.fillRect(L + i * 6.3, T + 54, 5, 5);
     }
   } else {

@@ -11,6 +11,8 @@ const CHAINS = {
   4: [[26, 0, 0, 1], [22, -8, 0, 1], [22, 8, 0, 1], [6, -12, -0.15, 0.8], [6, 12, 0.15, 0.8], [0, -14, -0.32, 0.6], [0, 14, 0.32, 0.6]],
 };
 
+const BOLT_KIND = ['shot', 'orange', 'red'];
+
 export class Player {
   constructor(game) {
     this.game = game;
@@ -19,7 +21,7 @@ export class Player {
     this.vx = this.vy = 0;
     this.alive = false;
     this.power = 1;
-    this.overdrive = 0;   // 0..14: chains upgraded to red (first 7), then to neon laser
+    this.overdrive = 0;   // P levels past max power: 1-7 orange, 8-14 red, 15-16 neon lasers
     this.laser = 0;       // neon laser output, ramps 0..1 while FIRE is held
     this.tilt = 0;
     this.invuln = 0;
@@ -56,16 +58,31 @@ export class Player {
     return CHAINS[this.power] || CHAINS[PLAYER.maxPower];
   }
 
-  /** 0 = blue bolts, 1 = red bolts, 2 = neon laser. */
+  /** Highest overdrive level: every chain orange, every chain red, then the lasers. */
+  static get maxOverdrive() {
+    return OVERDRIVE.chains * 2 + OVERDRIVE.laserChains.length;
+  }
+
+  /** 0 = blue bolts, 1 = orange, 2 = red, 3 = neon laser. */
   chainTier(i) {
     if (this.power < PLAYER.maxPower) return 0;
-    if (this.overdrive >= OVERDRIVE.chains + i + 1) return 2;
-    return this.overdrive >= i + 1 ? 1 : 0;
+    const C = OVERDRIVE.chains, od = this.overdrive;
+    const lasers = Math.max(0, od - C * 2);
+    const li = OVERDRIVE.laserChains.indexOf(i);
+    if (li >= 0 && li < lasers) return 3;
+    if (i < Math.max(0, Math.min(C, od - C))) return 2;
+    return i < Math.min(C, od) ? 1 : 0;
   }
 
   /** Chains currently upgraded to the continuous laser. */
   laserChains() {
-    return this.chains.filter((c, i) => this.chainTier(i) === 2);
+    return this.chains.filter((c, i) => this.chainTier(i) === 3);
+  }
+
+  /** Death penalty: lose one P level (an overdrive step first, then weapon power). */
+  losePowerLevel() {
+    if (this.overdrive > 0) this.overdrive--;
+    else this.power = Math.max(1, this.power - 1);
   }
 
   /** Tap to raise, tap again to drop early. */
@@ -241,9 +258,8 @@ export class Player {
     let fired = false;
     this.chains.forEach(([ox, oy, ang, dmg], i) => {
       const tier = this.chainTier(i);
-      if (tier === 2) return; // handled by the continuous laser
-      const red = tier === 1;
-      g.firePlayer(this.x + ox, this.y + oy, Math.cos(ang) * S, Math.sin(ang) * S, red ? dmg * OVERDRIVE.redMul : dmg, red ? 'red' : 'shot');
+      if (tier === 3) return; // handled by the continuous laser
+      g.firePlayer(this.x + ox, this.y + oy, Math.cos(ang) * S, Math.sin(ang) * S, dmg * OVERDRIVE.mul[tier], BOLT_KIND[tier]);
       fired = true;
     });
     this.shootWings();

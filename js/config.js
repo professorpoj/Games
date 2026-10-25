@@ -30,11 +30,14 @@ export const PLAYER = {
 };
 
 // Overdrive: P pickups after max power upgrade the 7 beam chains one at a time,
-// first to RED bolts, then to a continuous HOT NEON PINK laser.
+// blue -> orange (all 7), then orange -> red (all 7), then two chains become
+// continuous HOT NEON PINK lasers. After that P is worth points.
+// Damage multipliers are relative to the original blue bolt damage.
 export const OVERDRIVE = {
   chains: 7,
-  redMul: 2,             // red bolts: 2x the blue bolt damage
-  laserMul: 3,           // neon laser: 3x the blue chain's damage per second, continuous
+  mul: [0.8, 1, 1.5],    // bolt damage by tier: blue, orange, red
+  laserMul: 2,           // neon laser: 2x the chain's original damage per second, continuous
+  laserChains: [1, 2],   // only these two chains (the inner straight pair) can become lasers
   laserRamp: 0.15,       // seconds to reach full power when FIRE is pressed
   laserHalfWidth: 6,
 };

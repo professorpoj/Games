@@ -182,7 +182,7 @@ class Vehicle {
   }
 
   /**
-   * Station in the right half of the screen, independent of the player: each
+   * Station in the right 40% of the screen, independent of the player: each
    * vehicle picks its own spot there and drifts around it, without overlapping
    * other vehicles.
    */
@@ -196,7 +196,7 @@ class Vehicle {
       this.station = rand(0.6, 0.82);
       this.wanderPhase = rand(TAU);
     }
-    const lo = g.W * 0.5 + this.backLen, hi = g.W - this.frontLen - 12;
+    const lo = g.W * V.zone + this.backLen, hi = g.W - this.frontLen - 12;
     let tx = g.W * this.station + Math.sin(this.age * wanderFreq + this.wanderPhase) * g.W * wanderAmp;
     tx = lo < hi ? clamp(tx, lo, hi) : (lo + hi) / 2;
     for (const o of g.vehicles) {
@@ -209,9 +209,10 @@ class Vehicle {
     return clamp(tx, this.backLen - 40, g.W - this.frontLen - 12);
   }
 
+  /** Only fires once it has reached its attack zone on the right of the screen. */
   canFire(x) {
     const g = this.game;
-    return !this.retreating && g.player.alive && x > 24 && x < g.W - 24;
+    return !this.retreating && g.player.alive && x > g.W * V.zone - 40 && x < g.W - 24;
   }
 
   dust(ch, chance) {
@@ -356,7 +357,7 @@ export class Truck extends Vehicle {
     // Turret tracks the ballistic launch angle toward the player.
     const m = this.muzzle();
     if (p.alive) {
-      const v = this.solve(m.x, m.y, p.x, p.y, 1.3);
+      const v = this.solve(m.x, m.y, Math.max(p.x, g.W * V.zone), p.y, 2.6);
       const want = clamp(Math.atan2(v.vy, v.vx), -Math.PI + 0.15, -0.15);
       this.turret += angleDiff(this.turret, want) * damp(6, dt);
     }
@@ -377,9 +378,10 @@ export class Truck extends Vehicle {
     this.salvoLeft--;
     this.salvoCd = 0.22;
     if (!p.alive) return;
-    const T = rand(1.15, 1.45);
-    const tx = clamp(p.x + p.vx * T * 0.5 + rand(-45, 45), 20, g.W - 20);
-    const ty = clamp(p.y + p.vy * T * 0.5 + rand(-35, 35), 30, g.H - 80);
+    const T = rand(V.mortarFlight[0], V.mortarFlight[1]);
+    // Burst points are kept inside the right 40% of the screen.
+    const tx = clamp(p.x + p.vx * T * 0.25 + rand(-45, 45), g.W * V.zone, g.W - 20);
+    const ty = clamp(p.y + p.vy * T * 0.25 + rand(-35, 35), 30, g.H - 80);
     const v = this.solve(m.x, m.y, tx, ty, T);
     const b = g.fireEnemy('mortar', m.x, m.y, 0, 0, '#ff9a3c');
     if (!b) return;
@@ -491,7 +493,7 @@ export class Tank extends Vehicle {
         if (this.timer > V.tank.lock) {
           // Lead the target: where the player will be when the shell arrives.
           const T = Math.hypot(p.x - piv.x, p.y - piv.y) / S;
-          this.aimX = clamp(p.x + p.vx * T, 10, g.W - 10);
+          this.aimX = clamp(p.x + p.vx * T, g.W * V.zone, g.W - 10);
           this.aimY = clamp(p.y + p.vy * T, 10, g.H - 70);
         }
         this.aimAt(piv, this.aimX, this.aimY, dt, 2.2);
@@ -683,9 +685,9 @@ export class Train extends Vehicle {
         if (b) {
           b.phase = 'boost';
           b.vx = this.u - SCROLL_SPEED;
-          b.vy = -280;
+          b.vy = -140;
           b.hp = 1;
-          b.life = 8;
+          b.life = 14;
           b.speed = V.train.missileSpeed * g.difficulty.speed;
           b.amp = 34;
           b.lambda = 150;

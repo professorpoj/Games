@@ -90,6 +90,15 @@ export class Director {
     if (!this.demo) this.game.showBanner(`WAVE ${w}`, w % 5 === 0 ? 'FLAGSHIP INBOUND' : '');
   }
 
+  /** Whether another vehicle of this type fits beside the ones already in the attack zone. */
+  vehicleFits(type) {
+    const g = this.game;
+    const len = { truck: 72, tank: 122, train: 380 }[type];
+    let used = 0;
+    for (const v of g.vehicles) if (!v.retreating) used += v.backLen + v.frontLen + 30;
+    return used === 0 || used + len <= g.W * (1 - VEHICLES.zone);
+  }
+
   /** Mix ground vehicles into the wave; each type is guaranteed on its debut wave. */
   addGroundUnits(w) {
     const U = VEHICLES.unlock, picks = [];
@@ -145,6 +154,15 @@ export class Director {
       return;
     }
     if (this.queue.length) {
+      if (this.queue[0].ground && !this.vehicleFits(this.queue[0].ground)) {
+        // No room in the vehicles' attack zone yet: let a queued swarm go first, or wait.
+        const i = this.queue.findIndex((q) => !q.ground);
+        if (i > 0) this.queue.unshift(...this.queue.splice(i, 1));
+        else {
+          this.queue[0].delay = Math.max(this.queue[0].delay, 0.5);
+          return;
+        }
+      }
       const next = this.queue[0];
       // Keep the action flowing: don't leave the screen empty for long.
       if (g.swarms.length === 0 && g.vehicles.length === 0) next.delay = Math.min(next.delay, 0.6);

@@ -86,15 +86,15 @@ export function updateHeavy(b, dt, g) {
     const p = g.player;
     if (b.phase === 'boost') {
       // Pop straight up out of the launch rack, slowing as the motor ignites.
-      b.vy += (-60 - b.vy) * Math.min(1, dt * 4);
-      b.vx += (40 - b.vx) * Math.min(1, dt * 3);
+      b.vy += (-30 - b.vy) * Math.min(1, dt * 2);
+      b.vx += (20 - b.vx) * Math.min(1, dt * 1.5);
       b.x += b.vx * dt;
       b.y += b.vy * dt;
-      if (b.t >= 0.45) {
+      if (b.t >= 0.9) {
         b.phase = 'cruise';
         b.bx = b.x;
         b.by = b.y;
-        const tx = p.alive ? p.x : b.x + 300, ty = p.alive ? p.y : b.y;
+        const tx = p.alive ? Math.max(p.x, g.W * V.zone) : b.x + 300, ty = p.alive ? p.y : b.y;
         b.ang = Math.atan2(ty - b.y, tx - b.x);
         b.wave = 0;
         g.sfx.play('missileLaunch');
@@ -102,7 +102,7 @@ export function updateHeavy(b, dt, g) {
     } else {
       // Sine-wave path around a slowly homing base line: easy to read, easy to sidestep.
       if (p.alive) {
-        const want = Math.atan2(p.y - b.by, p.x - b.bx);
+        const want = Math.atan2(p.y - b.by, Math.max(p.x, g.W * V.zone) - b.bx);
         b.ang += clamp(angleDiff(b.ang, want), -0.45 * dt, 0.45 * dt);
       }
       const dx = Math.cos(b.ang), dy = Math.sin(b.ang);
@@ -112,6 +112,12 @@ export function updateHeavy(b, dt, g) {
       const off = Math.sin(b.wave) * b.amp;
       b.x = b.bx - dy * off;
       b.y = b.by + dx * off;
+      // Missiles never leave the attack zone: they self-destruct at its left edge.
+      if (b.bx < g.W * V.zone - 20) {
+        blast(g, b.x, b.y, 22, '#ffb03b', true);
+        b.dead = true;
+        return;
+      }
     }
     P.add('glow', b.x - Math.cos(b.dir || -Math.PI / 2) * 6, b.y - Math.sin(b.dir || -Math.PI / 2) * 6, 0, 0, 0.12, 6, '#ffb03b');
     if (Math.random() < 0.4) P.smoke(b.x, b.y, rand(-6, 6), rand(-6, 6), 2.6, 1.1, CONTRAIL);

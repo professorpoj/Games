@@ -27,14 +27,12 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 |---|---|---|
 | Left half: floating joystick (or touch-drag mode) | WASD / arrows | Move in any direction |
 | **FIRE** (hold) | Space / J / Z | Shoot |
-| **FOCUS** (hold) | Shift / K / X | Slow, precise movement; tighter spread; shows your hitbox |
 | **SHIELD** (tap on / tap off) | V / E | Bubble that destroys enemy bullets touching it. Lasts 4 s on a full meter, recharges 5x slower (20 s) |
 | **BOMB** | B / L / C | Shockwave that damages every enemy ship on screen (doesn't touch bullets) |
 | Pause button | P / Esc | Pause |
 
 - **Joystick mode:** the stick appears wherever your left thumb lands and follows it if you drag past the edge, so changing direction is always instant. It has a small dead zone and a gentle response curve for fine adjustments.
 - **Touch-drag mode** (switch it in the menu): the ship moves 1:1 with your finger, like a trackpad. This is the most precise option.
-- Your right thumb can **roll** between FIRE and FOCUS without lifting.
 - **Auto-fire** can be turned on in the menu.
 
 ## Mechanics

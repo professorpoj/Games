@@ -680,7 +680,7 @@ export class Game {
     ctx.globalCompositeOperation = 'source-over';
 
     const p = this.player;
-    if (p.alive) drawPlayer(ctx, L(p.px, p.x), L(p.py, p.y), p, t, this.input.focus && this.state === 'playing', alpha);
+    if (p.alive) drawPlayer(ctx, L(p.px, p.x), L(p.py, p.y), p, t, alpha);
 
     if (p.alive && p.shieldOn) this.drawShield(ctx, L(p.px, p.x), L(p.py, p.y), t);
     this.drawEnemyBullets(ctx, L);

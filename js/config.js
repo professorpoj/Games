@@ -17,10 +17,9 @@ export const GROUND_H = 46;
 
 export const PLAYER = {
   speed: 340,            // max speed (units/s)
-  focusSpeed: 150,       // max speed while FOCUS is held
   response: 30,          // analog stick velocity smoothing rate (higher = snappier)
   responseDigital: 22,   // keyboard velocity smoothing rate
-  hitRadius: 4,          // tiny, precise hitbox (shown while focusing)
+  hitRadius: 4,          // tiny, precise hitbox
   fireInterval: 1 / 12,
   bulletSpeed: 960,
   invulnTime: 2.5,

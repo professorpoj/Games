@@ -111,8 +111,6 @@ export class Player {
     this.px = this.x;
     this.py = this.y;
     this.invuln = Math.max(0, this.invuln - dt);
-    const focus = input.focus;
-    const maxSpeed = focus ? PLAYER.focusSpeed : PLAYER.speed;
     const b = this.bounds();
 
     if (this.entry > 0) {
@@ -125,7 +123,7 @@ export class Player {
       input.dragDX = input.dragDY = 0;
     } else if (input.dragDX || input.dragDY || input.dragActive) {
       // Touch-drag: ship moves 1:1 with the finger (scaled), the most precise mode.
-      const sens = CONTROLS.dragSensitivity * (focus ? 0.5 : 1);
+      const sens = CONTROLS.dragSensitivity;
       const dx = input.dragDX * sens, dy = input.dragDY * sens;
       input.dragDX = input.dragDY = 0;
       this.x += dx;
@@ -136,8 +134,8 @@ export class Player {
     } else {
       // Analog/digital: smoothly approach the target velocity (snappy, no drift).
       const k = damp(input.analog ? PLAYER.response : PLAYER.responseDigital, dt);
-      this.vx += (input.moveX * maxSpeed - this.vx) * k;
-      this.vy += (input.moveY * maxSpeed - this.vy) * k;
+      this.vx += (input.moveX * PLAYER.speed - this.vx) * k;
+      this.vy += (input.moveY * PLAYER.speed - this.vy) * k;
       this.x += this.vx * dt;
       this.y += this.vy * dt;
     }
@@ -154,7 +152,7 @@ export class Player {
     this.fireCd -= dt;
     if (input.fire) {
       if (this.fireCd <= 0) {
-        this.shoot(focus);
+        this.shoot();
         this.fireCd += PLAYER.fireInterval;
         if (this.fireCd < 0) this.fireCd = 0;
       }
@@ -172,7 +170,7 @@ export class Player {
     } else if (!input.fire && this.wingBombCd < 0) this.wingBombCd = 0;
   }
 
-  shootWings(spread) {
+  shootWings() {
     const g = this.game, S = PLAYER.bulletSpeed, dmg = WINGMAN.bulletDamage;
     for (let i = 0; i < this.wingCount; i++) {
       const w = this.wings[i], n = this.wingRounds(i), x = w.x + 12;
@@ -181,15 +179,14 @@ export class Player {
         g.firePlayer(x, w.y - 4, S, 0, dmg, 'wing');
         g.firePlayer(x, w.y + 4, S, 0, dmg, 'wing');
       } else {
-        for (const a of [-0.09, 0, 0.09]) g.firePlayer(x, w.y, Math.cos(a * spread) * S, Math.sin(a * spread) * S, dmg, 'wing');
+        for (const a of [-0.09, 0, 0.09]) g.firePlayer(x, w.y, Math.cos(a) * S, Math.sin(a) * S, dmg, 'wing');
       }
     }
   }
 
-  shoot(focus) {
+  shoot() {
     const g = this.game, S = PLAYER.bulletSpeed;
     const nx = this.x + 22, y = this.y;
-    const spread = focus ? 0.35 : 1;
     const shot = (x, yy, ang, dmg) => g.firePlayer(x, yy, Math.cos(ang) * S, Math.sin(ang) * S, dmg);
     switch (this.power) {
       case 1:
@@ -202,19 +199,19 @@ export class Player {
       case 3:
         shot(nx, y - 6, 0, 1);
         shot(nx, y + 6, 0, 1);
-        shot(this.x + 6, y - 10, -0.13 * spread, 0.7);
-        shot(this.x + 6, y + 10, 0.13 * spread, 0.7);
+        shot(this.x + 6, y - 10, -0.13, 0.7);
+        shot(this.x + 6, y + 10, 0.13, 0.7);
         break;
       default:
         shot(nx + 4, y, 0, 1);
         shot(nx, y - 8, 0, 1);
         shot(nx, y + 8, 0, 1);
-        shot(this.x + 6, y - 12, -0.15 * spread, 0.8);
-        shot(this.x + 6, y + 12, 0.15 * spread, 0.8);
-        shot(this.x, y - 14, -0.32 * spread, 0.6);
-        shot(this.x, y + 14, 0.32 * spread, 0.6);
+        shot(this.x + 6, y - 12, -0.15, 0.8);
+        shot(this.x + 6, y + 12, 0.15, 0.8);
+        shot(this.x, y - 14, -0.32, 0.6);
+        shot(this.x, y + 14, 0.32, 0.6);
     }
-    this.shootWings(spread);
+    this.shootWings();
     g.particles.muzzle(nx + 2, y);
     g.sfx.play('shoot');
   }
@@ -272,7 +269,7 @@ function drawShip(ctx, x, y, tilt, vx, t, scale, colors) {
 }
 
 /** Placeholder hero ship (pale blue) plus its small green wingmen. */
-export function drawPlayer(ctx, x, y, p, t, focus, alpha) {
+export function drawPlayer(ctx, x, y, p, t, alpha) {
   const blink = p.invuln > 0 && Math.floor(t * 18) % 2;
   if (blink) ctx.globalAlpha = 0.35;
   for (let i = 0; i < p.wingCount; i++) {
@@ -281,15 +278,4 @@ export function drawPlayer(ctx, x, y, p, t, focus, alpha) {
   }
   drawShip(ctx, x, y, p.tilt, p.vx, t, 1, HERO_COLORS);
   ctx.globalAlpha = 1;
-
-  if (focus) {
-    // Reveal the true hitbox while focusing.
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#ff3b5c';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, PLAYER.hitRadius + 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  }
 }

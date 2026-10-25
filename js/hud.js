@@ -212,7 +212,6 @@ export function drawControls(ctx, g) {
   }
 
   drawButton(ctx, b.fire, g.settings.autoFire ? 'AUTO' : '');
-  drawButton(ctx, b.focus);
   drawShieldButton(ctx, b.shield, g.player);
   ctx.globalAlpha *= g.bombs > 0 ? 1 : 0.4;
   drawButton(ctx, b.bomb, `x${g.bombs}`);

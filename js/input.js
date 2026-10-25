@@ -1,5 +1,5 @@
 // Unified input: multi-touch on-screen controls (floating analog stick or
-// relative touch-drag on the left, FIRE / FOCUS / BOMB on the right) plus
+// relative touch-drag on the left, FIRE / SHIELD / BOMB on the right) plus
 // keyboard for desktop testing.
 import { CONTROLS } from './config.js';
 
@@ -9,7 +9,6 @@ const KEYS = {
   up: ['ArrowUp', 'KeyW'],
   down: ['ArrowDown', 'KeyS'],
   fire: ['Space', 'KeyJ', 'KeyZ'],
-  focus: ['ShiftLeft', 'ShiftRight', 'KeyK', 'KeyX'],
   bomb: ['KeyB', 'KeyL', 'KeyC'],
   shield: ['KeyV', 'KeyE'],
   pause: ['Escape', 'KeyP'],
@@ -30,7 +29,6 @@ export class Input {
     this.stick = { id: null, bx: 0, by: 0, kx: 0, ky: 0, homeX: 0, homeY: 0 };
     this.btn = {
       fire: { x: 0, y: 0, r: 60, label: 'FIRE', color: '#4cc9f0', down: false },
-      focus: { x: 0, y: 0, r: 40, label: 'FOCUS', color: '#c9b6ff', down: false },
       bomb: { x: 0, y: 0, r: 40, label: 'BOMB', color: '#ff5fd2', down: false },
       shield: { x: 0, y: 0, r: 40, label: 'SHIELD', color: '#7df9ff', down: false },
       pause: { x: 0, y: 0, r: 22, label: 'II', color: '#ffffff', down: false },
@@ -44,7 +42,6 @@ export class Input {
     this.dragId = null;
     this.dragPos = null;
     this.fire = false;
-    this.focus = false;
     this.bombQueued = false;
     this.shieldQueued = false;
     this.pauseQueued = false;
@@ -74,9 +71,8 @@ export class Input {
     const R = W - insets.r, B = H - insets.b;
     const b = this.btn;
     Object.assign(b.fire, { x: R - 102, y: B - 112 });
-    Object.assign(b.focus, { x: R - 226, y: B - 60 });
     Object.assign(b.bomb, { x: R - 82, y: B - 242 });
-    Object.assign(b.shield, { x: R - 232, y: B - 176 });
+    Object.assign(b.shield, { x: R - 226, y: B - 60 });
     Object.assign(b.pause, { x: R - 36, y: insets.t + 34 });
     this.stick.homeX = insets.l + 130;
     this.stick.homeY = B - 120;
@@ -129,9 +125,6 @@ export class Input {
     } else if (this.showTouch && hit(b.fire, p, 1.3)) {
       rec.kind = 'button';
       rec.button = 'fire';
-    } else if (this.showTouch && hit(b.focus, p, 1.3)) {
-      rec.kind = 'button';
-      rec.button = 'focus';
     } else if (p.x < this.leftZone) {
       if (this.mode === 'stick' && this.stick.id === null) {
         rec.kind = 'stick';
@@ -145,7 +138,7 @@ export class Input {
         this.dragPos = p;
       }
     } else {
-      // Right side but not on a button: becomes a "rolling" thumb that can slide onto FIRE/FOCUS.
+      // Right side but not on a button: becomes a "rolling" thumb that can slide onto FIRE.
       rec.kind = 'button';
       rec.button = this.rollTarget(p);
     }
@@ -159,7 +152,6 @@ export class Input {
 
   rollTarget(p) {
     if (hit(this.btn.fire, p, 1.3)) return 'fire';
-    if (hit(this.btn.focus, p, 1.3)) return 'focus';
     return null;
   }
 
@@ -210,7 +202,7 @@ export class Input {
   poll() {
     const k = this.keys, any = (list) => list.some((c) => k.has(c));
     const b = this.btn;
-    b.fire.down = b.focus.down = b.bomb.down = b.shield.down = false;
+    b.fire.down = b.bomb.down = b.shield.down = false;
     for (const rec of this.pointers.values()) if (rec.button) b[rec.button].down = true;
 
     const s = this.stick;
@@ -240,7 +232,6 @@ export class Input {
     }
     this.dragActive = this.dragId !== null;
     this.fire = b.fire.down || any(KEYS.fire) || this.game.settings.autoFire;
-    this.focus = b.focus.down || any(KEYS.focus);
   }
 
   consumeBomb() {

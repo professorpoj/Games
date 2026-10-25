@@ -70,12 +70,13 @@ export class Input {
     const { W, H, insets } = this.game;
     const R = W - insets.r, B = H - insets.b;
     const b = this.btn;
-    Object.assign(b.fire, { x: R - 102, y: B - 112 });
-    Object.assign(b.bomb, { x: R - 82, y: B - 242 });
-    Object.assign(b.shield, { x: R - 226, y: B - 60 });
+    // Packed into the bottom corners: FIRE in the corner, SHIELD to its left, BOMB above.
+    Object.assign(b.fire, { x: R - 70, y: B - 70 });
+    Object.assign(b.shield, { x: R - 180, y: B - 52 });
+    Object.assign(b.bomb, { x: R - 52, y: B - 178 });
     Object.assign(b.pause, { x: R - 36, y: insets.t + 34 });
-    this.stick.homeX = insets.l + 130;
-    this.stick.homeY = B - 120;
+    this.stick.homeX = insets.l + 86;
+    this.stick.homeY = B - 86;
     this.leftZone = W * 0.5;
   }
 
@@ -114,17 +115,12 @@ export class Input {
     const b = this.btn;
     if (hit(b.pause, p, 1.5)) {
       this.pauseQueued = true;
-    } else if (this.showTouch && hit(b.bomb, p, 1.25)) {
+    } else if (this.showTouch && this.pressTarget(p)) {
+      // Buttons sit close together, so a touch goes to the nearest one it reaches.
       rec.kind = 'button';
-      rec.button = 'bomb';
-      this.bombQueued = true;
-    } else if (this.showTouch && hit(b.shield, p, 1.25)) {
-      rec.kind = 'button';
-      rec.button = 'shield';
-      this.shieldQueued = true;
-    } else if (this.showTouch && hit(b.fire, p, 1.3)) {
-      rec.kind = 'button';
-      rec.button = 'fire';
+      rec.button = this.pressTarget(p);
+      if (rec.button === 'bomb') this.bombQueued = true;
+      if (rec.button === 'shield') this.shieldQueued = true;
     } else if (p.x < this.leftZone) {
       if (this.mode === 'stick' && this.stick.id === null) {
         rec.kind = 'stick';
@@ -150,8 +146,28 @@ export class Input {
     }
   }
 
+  pressTarget(p) {
+    if (this.inFireCorner(p)) return 'fire';
+    let best = null, bestD = Infinity;
+    for (const [name, slack] of [['fire', 1.3], ['shield', 1.25], ['bomb', 1.25]]) {
+      const btn = this.btn[name];
+      const d = Math.hypot(p.x - btn.x, p.y - btn.y) / btn.r;
+      if (d <= slack && d < bestD) {
+        best = name;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  /** Everything between FIRE and the screen corner counts as FIRE. */
+  inFireCorner(p) {
+    const f = this.btn.fire;
+    return p.x >= f.x - 10 && p.y >= f.y - 10;
+  }
+
   rollTarget(p) {
-    if (hit(this.btn.fire, p, 1.3)) return 'fire';
+    if (hit(this.btn.fire, p, 1.3) || this.inFireCorner(p)) return 'fire';
     return null;
   }
 

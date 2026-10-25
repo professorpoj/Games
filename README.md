@@ -79,6 +79,16 @@ The shield stops all of this ordnance (shells fizzle on the bubble), and the bom
 
 **Testing tip:** add `?wave=N` to the URL to start a game at wave N, for example `.../Games/?wave=6` to meet the train right away.
 
+### Planets in the sky
+
+The sky has a slow celestial cycle, drawn behind the mountain silhouettes so the planets set and rise behind them:
+
+1. The **ringed planet** starts in its usual spot and drifts down and left at **19° below the horizontal** until it has fully set behind the far mountains (about 3 minutes).
+2. A **much larger banded gas giant**, with a great storm, rises from behind the left 30% of the range and climbs at **32°** until it has left the screen (about 4 minutes).
+3. The ringed planet comes back in from off-screen along its own 19° path, sets again, and the cycle repeats.
+
+The cycle runs continuously (including on the title screen), pauses with the game, and takes on the current colour stage's palette. Speed and angles are at the top of `js/background.js`.
+
 ### Landscape stages
 
 Every 5 waves the landscape changes as the next wave starts, crossfading over about 2.5 seconds:

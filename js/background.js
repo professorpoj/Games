@@ -6,6 +6,16 @@ import { GROUND_H } from './config.js';
 import { DECORS } from './decor.js';
 
 const TILE = 1400;
+
+// Celestial orbit cycle. The ringed planet drifts down-left at 19° below the
+// horizontal until it has fully set behind the far mountains; then a much
+// larger gas giant rises from behind the left 30% of the range, climbing at
+// 32° until it leaves the screen; then the ringed planet comes back in along
+// its own path from off-screen, and the cycle repeats.
+const ORBIT_SPEED = 5.5;               // logical units per second: slow
+const A_ANGLE = (19 * Math.PI) / 180;  // ringed planet: declining 19°
+const B_ANGLE = (32 * Math.PI) / 180;  // gas giant: inclining 32°
+const RIDGE_LOW = 0.68;                // lowest point of the far mountain silhouette (fraction of H)
 const GROUND_AMP = 7;
 
 // Hue rotation (degrees) applied to every colour while the layers are built.
@@ -91,6 +101,7 @@ export class Background {
     this.sky = null;
     this.motes = [];
     this.hue = 0;
+    this.orbit = { body: 'A', s: 0, fromStart: true }; // persists across rebuilds and games
     this.decor = 0;   // index into DECORS for the near layer's props
     this.prev = null; // previous palette, kept while crossfading
     this.fade = 1;
@@ -112,7 +123,7 @@ export class Background {
   setStage(n, fade = true) {
     const hue = (((n * 30) % 360) + 360) % 360, decor = n % DECORS.length;
     if (hue === this.hue && decor === this.decor) return;
-    this.prev = fade && this.sky ? { sky: this.sky, layers: this.layers } : null;
+    this.prev = fade && this.sky ? { sky: this.sky, layers: this.layers, planetA: this.planetA, giant: this.giant } : null;
     this.fade = this.prev ? 0 : 1;
     this.hue = hue;
     this.decor = decor;
@@ -120,6 +131,7 @@ export class Background {
   }
 
   tick(dt) {
+    this.tickOrbit(dt);
     if (!this.prev) return;
     this.fade += dt / 2.5;
     if (this.fade >= 1) {
@@ -135,6 +147,8 @@ export class Background {
     this.scale = scale;
     const rng = mulberry32(this.seed);
     this.sky = this.buildSky(W, H, scale, rng);
+    this.planetA = this.buildRingedPlanet(H, scale);
+    this.giant = this.buildGasGiant(H, scale);
     this.layers = [
       this.buildRidges(H, scale, rng),
       this.buildMesas(H, scale, rng),
@@ -192,8 +206,63 @@ export class Background {
     g.arc(sx, sy, H * 0.05, 0, TAU);
     g.fill();
 
-    // Ringed gas giant.
-    const px = W * 0.8, py = H * 0.22, pr = H * 0.12;
+    // Small moon.
+    const mx = W * 0.46, my = H * 0.12, mr = H * 0.03;
+    g.fillStyle = '#b9c3e6';
+    g.beginPath();
+    g.arc(mx, my, mr, 0, TAU);
+    g.fill();
+    g.fillStyle = 'rgba(10,5,25,0.7)';
+    g.beginPath();
+    g.arc(mx + mr * 0.45, my - mr * 0.2, mr, 0, TAU);
+    g.fill();
+    return c;
+  }
+
+  // ------------------------------------------------------------- planets
+
+  /** Current body and centre position along its orbit path. */
+  orbitPos() {
+    const o = this.orbit, W = this.W, H = this.H;
+    if (o.body === 'A') {
+      const r = H * 0.12, x0 = W * 0.8, y0 = H * 0.22;
+      const dx = -Math.cos(A_ANGLE), dy = Math.sin(A_ANGLE);
+      let back = 0;
+      if (!o.fromStart) {
+        // Re-entry: start fully off-screen, back up the same line (top / right edge).
+        const toRight = (W + r * 2.3 - x0) / Math.cos(A_ANGLE);
+        const toTop = (y0 + r * 1.2) / Math.sin(A_ANGLE);
+        back = Math.min(toRight, toTop) + 4;
+      }
+      const s = o.s - back;
+      return { body: 'A', x: x0 + dx * s, y: y0 + dy * s, r };
+    }
+    const r = H * 0.62;
+    const x0 = W * 0.3, y0 = H * RIDGE_LOW + r * 1.02 + 4;
+    return { body: 'B', x: x0 + Math.cos(B_ANGLE) * o.s, y: y0 - Math.sin(B_ANGLE) * o.s, r };
+  }
+
+  tickOrbit(dt) {
+    if (!this.W) return;
+    const o = this.orbit;
+    o.s += ORBIT_SPEED * dt;
+    const p = this.orbitPos();
+    if (p.body === 'A' && p.y - p.r * 1.1 > this.H * RIDGE_LOW + 2) {
+      // Fully set behind the mountains: the gas giant starts to rise.
+      o.body = 'B';
+      o.s = 0;
+    } else if (p.body === 'B' && (p.x - p.r * 1.12 > this.W || p.y + p.r * 1.12 < 0)) {
+      // Gas giant has left the screen: the ringed planet comes back around.
+      o.body = 'A';
+      o.s = 0;
+      o.fromStart = false;
+    }
+  }
+
+  buildRingedPlanet(H, scale) {
+    const pr = H * 0.12, w = pr * 4.6, h = pr * 2.4;
+    const { c, g } = layerCanvas(w, h, scale);
+    const px = w / 2, py = h / 2;
     const ring = (start, end) => {
       g.beginPath();
       g.ellipse(px, py, pr * 2.1, pr * 0.42, -0.28, start, end);
@@ -205,7 +274,7 @@ export class Background {
       g.stroke();
     };
     ring(Math.PI, TAU);
-    grd = g.createRadialGradient(px - pr * 0.4, py + pr * 0.4, pr * 0.1, px, py, pr);
+    const grd = g.createRadialGradient(px - pr * 0.4, py + pr * 0.4, pr * 0.1, px, py, pr);
     grd.addColorStop(0, '#f2a3c7');
     grd.addColorStop(0.6, '#8a4a9e');
     grd.addColorStop(1, '#3a1d52');
@@ -224,18 +293,68 @@ export class Background {
     }
     g.restore();
     ring(0, Math.PI);
+    return { canvas: c, w, h };
+  }
 
-    // Small moon.
-    const mx = W * 0.46, my = H * 0.12, mr = H * 0.03;
-    g.fillStyle = '#b9c3e6';
+  /** A much larger banded gas giant with a great storm, lit from the left. */
+  buildGasGiant(H, scale) {
+    const r = H * 0.62, size = r * 2.3;
+    const { c, g } = layerCanvas(size, size, scale);
+    const cx = size / 2, cy = size / 2;
+    // Atmospheric halo.
+    let grd = g.createRadialGradient(cx, cy, r * 0.97, cx, cy, r * 1.14);
+    grd.addColorStop(0, 'rgba(255,196,150,0.35)');
+    grd.addColorStop(1, 'rgba(255,196,150,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, size, size);
+    // Body, lit from the left so its bands show as soon as it clears the mountains.
+    grd = g.createRadialGradient(cx - r * 0.45, cy - r * 0.05, r * 0.05, cx, cy, r * 1.05);
+    grd.addColorStop(0, '#f6dcae');
+    grd.addColorStop(0.45, '#e0a26a');
+    grd.addColorStop(0.8, '#9a5a3e');
+    grd.addColorStop(1, '#3a1e2a');
+    g.fillStyle = grd;
     g.beginPath();
-    g.arc(mx, my, mr, 0, TAU);
+    g.arc(cx, cy, r, 0, TAU);
     g.fill();
-    g.fillStyle = 'rgba(10,5,25,0.7)';
+    g.save();
+    g.clip();
+    // Cloud bands.
+    const bands = [[-0.78, 0.07, '#7a3a2a'], [-0.6, 0.1, '#fff0d0'], [-0.42, 0.06, '#b0603a'], [-0.26, 0.12, '#f2c48e'],
+      [-0.06, 0.08, '#a85234'], [0.1, 0.13, '#ffe6bc'], [0.3, 0.07, '#b9663c'], [0.46, 0.1, '#f0bd86'], [0.64, 0.06, '#8a4430'], [0.8, 0.08, '#e9b07a']];
+    for (const [off, th, col] of bands) {
+      g.globalAlpha = 0.32;
+      g.fillStyle = col;
+      g.beginPath();
+      g.ellipse(cx, cy + off * r, r * 1.1, th * r, -0.12, 0, TAU);
+      g.fill();
+    }
+    // Great storm.
+    g.globalAlpha = 0.85;
+    g.fillStyle = '#f2b48a';
     g.beginPath();
-    g.arc(mx + mr * 0.45, my - mr * 0.2, mr, 0, TAU);
+    g.ellipse(cx + r * 0.28, cy + r * 0.22, r * 0.2, r * 0.115, -0.12, 0, TAU);
     g.fill();
-    return c;
+    g.fillStyle = '#b4483a';
+    g.beginPath();
+    g.ellipse(cx + r * 0.28, cy + r * 0.22, r * 0.15, r * 0.08, -0.12, 0, TAU);
+    g.fill();
+    // Night side toward the right.
+    g.globalAlpha = 1;
+    grd = g.createLinearGradient(cx - r * 0.1, cy, cx + r, cy - r * 0.25);
+    grd.addColorStop(0, 'rgba(20,8,30,0)');
+    grd.addColorStop(0.6, 'rgba(20,8,30,0.3)');
+    grd.addColorStop(1, 'rgba(20,8,30,0.7)');
+    g.fillStyle = grd;
+    g.fillRect(cx - r, cy - r, r * 2, r * 2);
+    g.restore();
+    // Sunlit rim.
+    g.strokeStyle = 'rgba(255,230,190,0.55)';
+    g.lineWidth = r * 0.012;
+    g.beginPath();
+    g.arc(cx, cy, r * 0.995, Math.PI * 0.6, Math.PI * 1.4);
+    g.stroke();
+    return { canvas: c, w: size, h: size };
   }
 
   buildRidges(H, scale, rng) {
@@ -436,6 +555,10 @@ export class Background {
 
   drawSet(ctx, scroll, set) {
     ctx.drawImage(set.sky, 0, 0, this.W, this.H);
+    // The planet sits in front of the sky but behind every mountain layer.
+    const pos = this.orbitPos();
+    const spr = pos.body === 'A' ? set.planetA : set.giant;
+    if (spr) ctx.drawImage(spr.canvas, pos.x - spr.w / 2, pos.y - spr.h / 2, spr.w, spr.h);
     const s = this.scale;
     for (const L of set.layers) {
       const w = L.canvas.width / s; // exact logical width of the tile bitmap

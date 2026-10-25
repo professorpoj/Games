@@ -402,6 +402,7 @@ export class Game {
     this.updateBomb(dt);
     this.collide();
     this.particles.update(dt);
+    this.bg.tick(dt);
 
     compact(this.enemies);
     compact(this.swarms);

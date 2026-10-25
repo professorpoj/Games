@@ -75,6 +75,10 @@ The shield stops all of this ordnance (shells fizzle on the bubble), and the bom
 
 **Testing tip:** add `?wave=N` to the URL to start a game at wave N, for example `.../Games/?wave=6` to meet the train right away.
 
+### Landscape colour cycle
+
+Every 5 waves the whole landscape (sky, planet, mountains, mesas, crystals, ground, floating spores) turns **one step around the 12-colour wheel (30°)**, crossfading over about 2.5 seconds as the next wave starts. Waves 1–5 use the original purple dusk, waves 6–10 shift 30°, waves 11–15 shift 60°, and so on, coming back around after wave 60. Ships, bullets and the HUD keep their colours so they stay readable.
+
 ### Mothership (boss)
 
 After every 5th wave a warning sounds and the **mothership** moves in on the right side of the screen. Its main weapon is a **big laser**:

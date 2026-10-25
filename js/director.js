@@ -50,6 +50,7 @@ export class Director {
     this.queue = [];
     this.phase = 'break';
     this.timer = demo ? 0.3 : 1.6;
+    this.game.bg?.setHue(0, false);
     // ?wave=N in the URL starts a real game at wave N (handy for testing).
     const start = parseInt(new URLSearchParams(location.search).get('wave'), 10);
     if (!demo && start > 1) {
@@ -74,6 +75,8 @@ export class Director {
     // The attract-mode demo loops through the early waves.
     if (this.demo && this.wave > 6) this.wave = 1;
     this.applyDifficulty();
+    // Every 5 waves the landscape palette turns one step (30°) around the colour wheel.
+    this.game.bg.setHue(Math.floor((this.wave - 1) / 5) * 30);
     const w = this.wave;
     const nSwarms = w <= 2 ? 2 : clamp(2 + Math.floor((w - 2) / 2), 2, 5);
     const available = TEMPLATES.filter((t) => t.unlock <= w);

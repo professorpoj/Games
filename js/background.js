@@ -1,11 +1,37 @@
 // Procedural parallax alien wasteland. Each layer is rendered once into a
 // horizontally tileable offscreen canvas (all noise is periodic over TILE),
 // then scrolled at its own speed factor every frame.
-import { mulberry32, TAU } from './utils.js';
+import { mulberry32, TAU, shiftHue } from './utils.js';
 import { GROUND_H } from './config.js';
 
 const TILE = 1400;
 const GROUND_AMP = 7;
+
+// Hue rotation (degrees) applied to every colour while the layers are built.
+let buildHue = 0;
+
+/** Wraps a 2D context so every fill/stroke/gradient colour is hue-shifted by buildHue. */
+function hueContext(g) {
+  if (!buildHue) return g;
+  return new Proxy(g, {
+    set(t, k, v) {
+      t[k] = k === 'fillStyle' || k === 'strokeStyle' ? shiftHue(v, buildHue) : v;
+      return true;
+    },
+    get(t, k) {
+      const v = t[k];
+      if (k === 'createLinearGradient' || k === 'createRadialGradient') {
+        return (...args) => {
+          const grd = v.apply(t, args);
+          const add = grd.addColorStop.bind(grd);
+          grd.addColorStop = (o, c) => add(o, shiftHue(c, buildHue));
+          return grd;
+        };
+      }
+      return typeof v === 'function' ? v.bind(t) : v;
+    },
+  });
+}
 
 function layerCanvas(w, h, scale) {
   const c = document.createElement('canvas');
@@ -13,7 +39,7 @@ function layerCanvas(w, h, scale) {
   c.height = Math.max(1, Math.round(h * scale));
   const g = c.getContext('2d');
   g.setTransform(c.width / w, 0, 0, c.height / h, 0, 0);
-  return { c, g };
+  return { c, g: hueContext(g) };
 }
 
 /** Sum of sines with integer frequencies => exactly periodic over TILE. Range ~[-1, 1]. */
@@ -63,9 +89,41 @@ export class Background {
     this.layers = [];
     this.sky = null;
     this.motes = [];
+    this.hue = 0;
+    this.prev = null; // previous palette, kept while crossfading
+    this.fade = 1;
   }
 
   build(W, H, scale) {
+    this.prev = null;
+    this.fade = 1;
+    this.rebuild(W, H, scale);
+  }
+
+  /**
+   * Rotate the whole palette to a new hue (one step on the 12-colour wheel = 30°),
+   * crossfading from the old colours over a couple of seconds.
+   */
+  setHue(deg, fade = true) {
+    deg = ((deg % 360) + 360) % 360;
+    if (deg === this.hue) return;
+    this.prev = fade && this.sky ? { sky: this.sky, layers: this.layers } : null;
+    this.fade = this.prev ? 0 : 1;
+    this.hue = deg;
+    if (this.W) this.rebuild(this.W, this.H, this.scale);
+  }
+
+  tick(dt) {
+    if (!this.prev) return;
+    this.fade += dt / 2.5;
+    if (this.fade >= 1) {
+      this.fade = 1;
+      this.prev = null;
+    }
+  }
+
+  rebuild(W, H, scale) {
+    buildHue = this.hue;
     this.W = W;
     this.H = H;
     this.scale = scale;
@@ -81,6 +139,8 @@ export class Background {
     for (let i = 0; i < 34; i++) {
       this.motes.push({ x: rng() * 4000, y: rng() * H, r: 0.8 + rng() * 1.8, f: 1.25 + rng() * 0.6, ph: rng() * TAU });
     }
+    this.moteColor = shiftHue('rgba(255,190,235,0.35)', this.hue);
+    buildHue = 0;
   }
 
   buildSky(W, H, scale, rng) {
@@ -383,9 +443,18 @@ export class Background {
   }
 
   render(ctx, scroll) {
-    ctx.drawImage(this.sky, 0, 0, this.W, this.H);
+    if (this.prev) {
+      this.drawSet(ctx, scroll, this.prev);
+      ctx.globalAlpha = this.fade;
+      this.drawSet(ctx, scroll, this);
+      ctx.globalAlpha = 1;
+    } else this.drawSet(ctx, scroll, this);
+  }
+
+  drawSet(ctx, scroll, set) {
+    ctx.drawImage(set.sky, 0, 0, this.W, this.H);
     const s = this.scale;
-    for (const L of this.layers) {
+    for (const L of set.layers) {
       const w = L.canvas.width / s; // exact logical width of the tile bitmap
       const off = (((scroll * L.factor) % w) + w) % w;
       for (let x = -off; x < this.W; x += w) {
@@ -406,7 +475,7 @@ export class Background {
   /** Floating spores drifting faster than the ground, in front of the action. */
   renderForeground(ctx, scroll, time) {
     const span = this.W + 40;
-    ctx.fillStyle = 'rgba(255,190,235,0.35)';
+    ctx.fillStyle = this.moteColor;
     for (const m of this.motes) {
       const x = ((((m.x - scroll * m.f) % span) + span) % span) - 20;
       const y = m.y + Math.sin(time * 0.9 + m.ph) * 8;

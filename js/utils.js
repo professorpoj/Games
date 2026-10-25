@@ -43,6 +43,42 @@ export function hexToRgba(hex, a) {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
+/** Rotate the hue of a CSS colour string (#rgb, #rrggbb, #rrggbbaa, rgb(), rgba()) by `deg`. */
+export function shiftHue(color, deg) {
+  if (!deg || typeof color !== 'string') return color;
+  let r, g, b, a = null, hexAlpha = null;
+  if (color[0] === '#') {
+    let h = color.slice(1);
+    if (h.length === 3) h = h.replace(/./g, '$&$&');
+    r = parseInt(h.slice(0, 2), 16);
+    g = parseInt(h.slice(2, 4), 16);
+    b = parseInt(h.slice(4, 6), 16);
+    if (h.length === 8) hexAlpha = h.slice(6, 8);
+  } else {
+    const m = color.match(/rgba?\(([^)]+)\)/);
+    if (!m) return color;
+    [r, g, b, a] = m[1].split(',').map((v) => parseFloat(v));
+  }
+  // RGB -> HSL, rotate, back.
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  let h = 0, s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h *= 60;
+  }
+  h = (((h + deg) % 360) + 360) % 360;
+  const k = (n) => (n + h / 30) % 12, q = s * Math.min(l, 1 - l);
+  const f = (n) => Math.round(255 * (l - q * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
+  const [R, G, B] = [f(0), f(8), f(4)];
+  if (hexAlpha !== null || color[0] === '#') {
+    return '#' + [R, G, B].map((v) => v.toString(16).padStart(2, '0')).join('') + (hexAlpha ?? '');
+  }
+  return a === undefined || Number.isNaN(a) ? `rgb(${R},${G},${B})` : `rgba(${R},${G},${B},${a})`;
+}
+
 export function weightedPick(items, weight) {
   let total = 0;
   for (const it of items) total += weight(it);

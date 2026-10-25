@@ -29,6 +29,16 @@ export const PLAYER = {
   maxPower: 4,
 };
 
+// Overdrive: P pickups after max power upgrade the 7 beam chains one at a time,
+// first to RED bolts, then to a continuous HOT NEON PINK laser.
+export const OVERDRIVE = {
+  chains: 7,
+  redMul: 2,             // red bolts: 2x the blue bolt damage
+  laserMul: 3,           // neon laser: 3x the blue chain's damage per second, continuous
+  laserRamp: 0.15,       // seconds to reach full power when FIRE is pressed
+  laserHalfWidth: 6,
+};
+
 // Wingmen from rare green "W" pickups. Each wingman has its own level:
 // 1-3 = rounds per shot, 4 = launches bombs, 5-7 = faster bombs.
 // A W always upgrades the weaker wingman (rebuilding a lost one first);

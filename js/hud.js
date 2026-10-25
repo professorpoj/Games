@@ -1,4 +1,4 @@
-import { CONTROLS, PLAYER, SHIELD } from './config.js';
+import { CONTROLS, PLAYER, SHIELD, OVERDRIVE } from './config.js';
 import { TAU, hexToRgba } from './utils.js';
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
@@ -48,9 +48,17 @@ export function drawHud(ctx, g) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   const power = g.player.power;
-  for (let i = 0; i < PLAYER.maxPower; i++) {
-    ctx.fillStyle = i < power ? '#ffd23f' : 'rgba(255,255,255,0.18)';
-    ctx.fillRect(L + i * 11, T + 54, 8, 5);
+  if (power >= PLAYER.maxPower && g.player.overdrive > 0) {
+    // Overdrive: one pip per beam chain, coloured by tier (blue / red / neon).
+    for (let i = 0; i < OVERDRIVE.chains; i++) {
+      ctx.fillStyle = ['#4cc9f0', '#ff3b3b', '#ff3ec8'][g.player.chainTier(i)];
+      ctx.fillRect(L + i * 6.3, T + 54, 5, 5);
+    }
+  } else {
+    for (let i = 0; i < PLAYER.maxPower; i++) {
+      ctx.fillStyle = i < power ? '#ffd23f' : 'rgba(255,255,255,0.18)';
+      ctx.fillRect(L + i * 11, T + 54, 8, 5);
+    }
   }
   const [wt, wb] = g.player.wings;
   if (wt.level || wb.level) {

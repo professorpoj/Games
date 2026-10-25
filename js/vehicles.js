@@ -241,12 +241,14 @@ class Vehicle {
     return null;
   }
 
-  damage(part, d, hx, hy) {
+  damage(part, d, hx, hy, quiet = false) {
     if (!part.alive || this.dying) return;
     part.hp -= d;
-    part.flash = 0.06;
-    this.game.particles.hit(hx, hy, '#ffd27a');
-    this.game.sfx.play('hit');
+    part.flash = quiet ? Math.max(part.flash, 0.03) : 0.06;
+    if (!quiet) {
+      this.game.particles.hit(hx, hy, '#ffd27a');
+      this.game.sfx.play('hit');
+    }
     if (part.hp <= 0) this.partDestroyed(part);
   }
 

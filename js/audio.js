@@ -59,6 +59,29 @@ export class Sfx {
     src.stop(t + dur);
   }
 
+  /** Continuous neon-laser hum; level 0..1 (0 = silent). */
+  setLaser(level) {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    if (!this.enabled) level = 0;
+    if (level > 0 && !this.laserGain) {
+      const c = this.ctx;
+      this.laserGain = c.createGain();
+      this.laserGain.gain.value = 0;
+      const filt = c.createBiquadFilter();
+      filt.type = 'lowpass';
+      filt.frequency.value = 1400;
+      for (const [type, f] of [['sawtooth', 110], ['square', 221], ['sine', 880]]) {
+        const o = c.createOscillator();
+        o.type = type;
+        o.frequency.value = f;
+        o.connect(filt);
+        o.start();
+      }
+      filt.connect(this.laserGain).connect(this.out);
+    }
+    if (this.laserGain) this.laserGain.gain.setTargetAtTime(level * 0.05, this.ctx.currentTime, 0.03);
+  }
+
   play(name) {
     if (!this.enabled || !this.ctx || this.ctx.state !== 'running') return;
     switch (name) {

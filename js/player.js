@@ -1,5 +1,15 @@
-import { PLAYER, CONTROLS, GROUND_H, WINGMAN, SHIELD } from './config.js';
+import { PLAYER, CONTROLS, GROUND_H, WINGMAN, SHIELD, OVERDRIVE } from './config.js';
 import { clamp, damp } from './utils.js';
+
+// Beam chains per power level: [x offset, y offset, angle, damage per bolt].
+// At max power the order is also the overdrive upgrade order: the centre chain
+// first, then alternating top / bottom working outward.
+const CHAINS = {
+  1: [[22, 0, 0, 1]],
+  2: [[22, -6, 0, 1], [22, 6, 0, 1]],
+  3: [[22, -6, 0, 1], [22, 6, 0, 1], [6, -10, -0.13, 0.7], [6, 10, 0.13, 0.7]],
+  4: [[26, 0, 0, 1], [22, -8, 0, 1], [22, 8, 0, 1], [6, -12, -0.15, 0.8], [6, 12, 0.15, 0.8], [0, -14, -0.32, 0.6], [0, 14, 0.32, 0.6]],
+};
 
 export class Player {
   constructor(game) {
@@ -9,6 +19,8 @@ export class Player {
     this.vx = this.vy = 0;
     this.alive = false;
     this.power = 1;
+    this.overdrive = 0;   // 0..14: chains upgraded to red (first 7), then to neon laser
+    this.laser = 0;       // neon laser output, ramps 0..1 while FIRE is held
     this.tilt = 0;
     this.invuln = 0;
     this.entry = 0;
@@ -38,6 +50,22 @@ export class Player {
       w.y = w.py = this.y;
       w.bombCd = 0;
     }
+  }
+
+  get chains() {
+    return CHAINS[this.power] || CHAINS[PLAYER.maxPower];
+  }
+
+  /** 0 = blue bolts, 1 = red bolts, 2 = neon laser. */
+  chainTier(i) {
+    if (this.power < PLAYER.maxPower) return 0;
+    if (this.overdrive >= OVERDRIVE.chains + i + 1) return 2;
+    return this.overdrive >= i + 1 ? 1 : 0;
+  }
+
+  /** Chains currently upgraded to the continuous laser. */
+  laserChains() {
+    return this.chains.filter((c, i) => this.chainTier(i) === 2);
   }
 
   /** Tap to raise, tap again to drop early. */
@@ -172,6 +200,10 @@ export class Player {
       }
     } else if (this.fireCd < 0) this.fireCd = 0;
 
+    // Neon laser snaps to full power while FIRE is held, then cuts out on release.
+    const lasing = input.fire && this.entry <= 0 && this.laserChains().length > 0;
+    this.laser = lasing ? Math.min(1, this.laser + dt / OVERDRIVE.laserRamp) : Math.max(0, this.laser - dt / 0.1);
+
     for (const w of this.wings) {
       if (w.level <= WINGMAN.maxRounds) continue;
       w.bombCd -= dt;
@@ -200,34 +232,19 @@ export class Player {
 
   shoot() {
     const g = this.game, S = PLAYER.bulletSpeed;
-    const nx = this.x + 22, y = this.y;
-    const shot = (x, yy, ang, dmg) => g.firePlayer(x, yy, Math.cos(ang) * S, Math.sin(ang) * S, dmg);
-    switch (this.power) {
-      case 1:
-        shot(nx, y, 0, 1);
-        break;
-      case 2:
-        shot(nx, y - 6, 0, 1);
-        shot(nx, y + 6, 0, 1);
-        break;
-      case 3:
-        shot(nx, y - 6, 0, 1);
-        shot(nx, y + 6, 0, 1);
-        shot(this.x + 6, y - 10, -0.13, 0.7);
-        shot(this.x + 6, y + 10, 0.13, 0.7);
-        break;
-      default:
-        shot(nx + 4, y, 0, 1);
-        shot(nx, y - 8, 0, 1);
-        shot(nx, y + 8, 0, 1);
-        shot(this.x + 6, y - 12, -0.15, 0.8);
-        shot(this.x + 6, y + 12, 0.15, 0.8);
-        shot(this.x, y - 14, -0.32, 0.6);
-        shot(this.x, y + 14, 0.32, 0.6);
-    }
+    let fired = false;
+    this.chains.forEach(([ox, oy, ang, dmg], i) => {
+      const tier = this.chainTier(i);
+      if (tier === 2) return; // handled by the continuous laser
+      const red = tier === 1;
+      g.firePlayer(this.x + ox, this.y + oy, Math.cos(ang) * S, Math.sin(ang) * S, red ? dmg * OVERDRIVE.redMul : dmg, red ? 'red' : 'shot');
+      fired = true;
+    });
     this.shootWings();
-    g.particles.muzzle(nx + 2, y);
-    g.sfx.play('shoot');
+    if (fired) {
+      g.particles.muzzle(this.x + 24, this.y);
+      g.sfx.play('shoot');
+    }
   }
 }
 

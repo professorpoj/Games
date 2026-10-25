@@ -1,6 +1,6 @@
 import {
   VIEW_H, MIN_ASPECT, MAX_ASPECT, MAX_DPR, SCROLL_SPEED, PLAYER,
-  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN, SHIELD,
+  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE,
 } from './config.js';
 import { Pool, compact, clamp, rand, damp, segDist2, TAU } from './utils.js';
 import { Input } from './input.js';
@@ -18,8 +18,26 @@ import { drawHud, drawControls } from './hud.js';
 
 const BULLET_R = { orb: 5, big: 8, needle: 3.5, missile: 6 };
 const POWERUP_COLOR = { P: '#ffd23f', B: '#ff5fd2', W: '#5dff7a' };
-const PLAYER_SHOT_R = { shot: 5, wing: 4, wbomb: 7 };
+const PLAYER_SHOT_R = { shot: 5, red: 5, wing: 4, wbomb: 7 };
+const NEON = '#ff3ec8';
 const STORE = 'swarmbreaker.v1';
+
+/** Does segment (x0,y0)-(x1,y1) cross the box [bx0,bx1] x [by0,by1]? (slab test) */
+function segHitsBox(x0, y0, x1, y1, bx0, by0, bx1, by1) {
+  let t0 = 0, t1 = 1;
+  const dx = x1 - x0, dy = y1 - y0;
+  for (const [p, q] of [[-dx, x0 - bx0], [dx, bx1 - x0], [-dy, y0 - by0], [dy, by1 - y0]]) {
+    if (p === 0) {
+      if (q < 0) return false;
+    } else {
+      const r = q / p;
+      if (p < 0) t0 = Math.max(t0, r);
+      else t1 = Math.min(t1, r);
+      if (t0 > t1) return false;
+    }
+  }
+  return true;
+}
 
 function load() {
   try {
@@ -137,6 +155,7 @@ export class Game {
 
   setState(s) {
     this.state = s;
+    this.sfx.setLaser(0);
     this.input.reset();
     this.onStateChange?.(s);
   }
@@ -161,6 +180,8 @@ export class Game {
     this.gameOverTimer = 0;
     this.timeScale = 1;
     this.player.power = 1;
+    this.player.overdrive = 0;
+    this.player.laser = 0;
     this.player.clearWings();
     this.player.shield = 1;
     this.player.shieldOn = false;
@@ -389,6 +410,7 @@ export class Game {
     }
 
     this.updatePlayer(dt);
+    this.updateLasers(dt);
     this.director.update(dt);
     for (const s of this.swarms) s.update(dt);
     for (const v of this.vehicles) v.update(dt);
@@ -431,6 +453,76 @@ export class Game {
       this.bombs = Math.max(this.bombs, PLAYER.startBombs);
       this.clearEnemyBullets(true);
     }
+  }
+
+  /** Neon laser chains: continuous damage to everything along each beam. */
+  updateLasers(dt) {
+    const p = this.player;
+    this.sfx.setLaser(p.alive && this.state === 'playing' ? p.laser : 0);
+    if (!p.alive || p.laser <= 0) return;
+    const hw = OVERDRIVE.laserHalfWidth;
+    for (const [ox, oy, ang, dmg] of p.laserChains()) {
+      const x0 = p.x + ox, y0 = p.y + oy, dx = Math.cos(ang), dy = Math.sin(ang);
+      const x1 = x0 + dx * 1600, y1 = y0 + dy * 1600;
+      const burn = dmg * OVERDRIVE.laserMul * (1 / PLAYER.fireInterval) * p.laser * dt;
+      const contact = (x, y) => {
+        const t = Math.max(0, (x - x0) * dx + (y - y0) * dy);
+        return [x0 + dx * t, y0 + dy * t];
+      };
+      for (const e of this.enemies) {
+        if (e.dead || e.x > this.W + e.r) continue;
+        const rr = e.r + hw;
+        if (segDist2(e.x, e.y, x0, y0, x1, y1) < rr * rr) this.burnEnemy(e, burn, ...contact(e.x, e.y));
+      }
+      for (const b of this.eBullets.list) {
+        if (b.dead || b.hp <= 0) continue;
+        const rr = b.r + hw;
+        if (segDist2(b.x, b.y, x0, y0, x1, y1) < rr * rr && (b.hp -= burn) <= 0) {
+          b.dead = true;
+          if (HEAVY.has(b.kind)) fizzle(this, b);
+          else this.particles.explosion(b.x, b.y, '#ff6ad5', 0.5);
+        }
+      }
+      for (const v of this.vehicles) {
+        for (const part of v.parts) {
+          if (!part.alive) continue;
+          const bx = v.box(part);
+          if (segHitsBox(x0, y0, x1, y1, bx.x0 - hw, bx.y0 - hw, bx.x1 + hw, bx.y1 + hw)) {
+            const [cx, cy] = contact((bx.x0 + bx.x1) / 2, (bx.y0 + bx.y1) / 2);
+            v.damage(part, burn, cx, cy, true);
+            this.torch(cx, cy);
+          }
+        }
+      }
+      const ms = this.mothership;
+      if (ms && ms.state === 'fight') {
+        for (let s = 0; s < 1600; s += 8) {
+          const sx = x0 + dx * s, sy = y0 + dy * s;
+          if (ms.hits(sx, sy, hw)) {
+            ms.damage(burn, sx, sy, true);
+            this.torch(sx, sy);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  burnEnemy(e, dmg, hx, hy) {
+    if (e.dead) return;
+    e.hp -= dmg;
+    e.flash = Math.max(e.flash, 0.03);
+    this.torch(hx, hy);
+    if (e.hp <= 0) this.killEnemy(e);
+  }
+
+  /** Molten sparks, embers and smoke where the laser is cutting. */
+  torch(x, y) {
+    const P = this.particles;
+    if (Math.random() < 0.5) P.add('spark', x, y, rand(-200, 60), rand(-160, 160), rand(0.12, 0.25), 2, Math.random() < 0.5 ? NEON : '#ffd27a');
+    if (Math.random() < 0.15) P.ember(x, y, rand(-80, 40), rand(-140, -40), rand(0.4, 0.8), 2.5, '#ffb347');
+    if (Math.random() < 0.08) P.smoke(x, y, rand(-60, -20), rand(-40, -10), 4, 0.6, '#3a2f3f');
+    if (Math.random() < 0.3) P.add('glow', x, y, 0, 0, 0.08, 14, NEON);
   }
 
   updateEnemies(dt) {
@@ -525,6 +617,12 @@ export class Game {
       if (p.power < PLAYER.maxPower) {
         p.power++;
         this.particles.text(p.x, p.y - 26, p.power === PLAYER.maxPower ? 'MAX POWER' : 'POWER UP', '#ffd23f', 14);
+      } else if (p.overdrive < OVERDRIVE.chains * 2) {
+        // Overdrive: upgrade the next beam chain (red first, then neon laser).
+        p.overdrive++;
+        const n = p.overdrive, C = OVERDRIVE.chains;
+        const msg = n <= C ? `RED BEAM ${n}/${C}` : `NEON LASER ${n - C}/${C}`;
+        this.particles.text(p.x, p.y - 26, msg, n <= C ? '#ff3b3b' : NEON, 14);
       } else {
         this.score += 1000;
         this.particles.text(p.x, p.y - 26, '+1000', '#ffd23f', 14);
@@ -808,6 +906,7 @@ export class Game {
     ctx.globalCompositeOperation = 'lighter';
     const bolt = this.sprites.glow('#4cc9f0', 5);
     const wingBolt = this.sprites.glow('#5dff7a', 4);
+    const redBolt = this.sprites.glow('#ff3b3b', 5);
     for (const b of this.pBullets.list) {
       const x = L(b.px, b.x), y = L(b.py, b.y);
       if (b.kind === 'wbomb') {
@@ -815,7 +914,7 @@ export class Game {
         ctx.drawImage(this.sprites.glow('#5dff7a', 7), x - s / 2, y - s / 2, s, s);
         continue;
       }
-      const img = b.kind === 'wing' ? wingBolt : bolt;
+      const img = b.kind === 'wing' ? wingBolt : b.kind === 'red' ? redBolt : bolt;
       const w = b.kind === 'wing' ? 24 : 32, h = b.kind === 'wing' ? 9 : 12;
       if (b.vy === 0) ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
       else {
@@ -826,9 +925,10 @@ export class Game {
         ctx.restore();
       }
     }
+    const p = this.player;
+    if (p.alive && p.laser > 0) this.drawLasers(ctx, L(p.px, p.x), L(p.py, p.y), t);
     ctx.globalCompositeOperation = 'source-over';
 
-    const p = this.player;
     if (p.alive) drawPlayer(ctx, L(p.px, p.x), L(p.py, p.y), p, t, alpha);
 
     if (p.alive && p.shieldOn) this.drawShield(ctx, L, t);
@@ -860,6 +960,25 @@ export class Game {
     if (this.state === 'playing' || this.state === 'paused') {
       drawHud(ctx, this);
       drawControls(ctx, this);
+    }
+  }
+
+  drawLasers(ctx, px, py, t) {
+    const p = this.player, k = p.laser;
+    ctx.lineCap = 'round';
+    for (const [ox, oy, ang] of p.laserChains()) {
+      const x0 = px + ox, y0 = py + oy, x1 = x0 + Math.cos(ang) * 1600, y1 = y0 + Math.sin(ang) * 1600;
+      const w = (4 + Math.sin(t * 70 + ox) * 0.8) * (0.4 + 0.6 * k);
+      for (const [width, color] of [[w * 4.5, 'rgba(255,62,200,0.22)'], [w * 2.2, 'rgba(255,62,200,0.75)'], [w * 0.8, '#ffe3f6']]) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+      const s = 16 + 10 * k;
+      ctx.drawImage(this.sprites.glow(NEON, s / 2), x0 - s, y0 - s, s * 2, s * 2);
     }
   }
 

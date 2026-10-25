@@ -49,12 +49,14 @@ export class Mothership {
     return dx * dx + dy * dy < 1;
   }
 
-  damage(d, hx, hy) {
+  damage(d, hx, hy, quiet = false) {
     if (this.state !== 'fight') return;
     this.hp -= d;
-    this.flash = 0.05;
-    this.game.particles.hit(hx, hy, '#b9bfff');
-    this.game.sfx.play('hit');
+    this.flash = quiet ? Math.max(this.flash, 0.02) : 0.05;
+    if (!quiet) {
+      this.game.particles.hit(hx, hy, '#b9bfff');
+      this.game.sfx.play('hit');
+    }
     if (this.hp <= 0) this.retreat();
   }
 

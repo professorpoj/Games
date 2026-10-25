@@ -186,17 +186,17 @@ class Vehicle {
    * vehicle picks its own spot there and drifts around it, without overlapping
    * other vehicles.
    */
-  target(wanderAmp, wanderFreq) {
+  target(wanderAmp, wanderFreq, range = null) {
     const g = this.game;
     if (this.age > this.cfg.life || this.retreating) {
       this.retreating = true;
       return -3000;
     }
-    if (this.station === undefined) {
-      this.station = rand(0.6, 0.82);
-      this.wanderPhase = rand(TAU);
-    }
-    const lo = g.W * V.zone + this.backLen, hi = g.W - this.frontLen - 12;
+    if (this.station === undefined) this.station = rand(0.6, 0.82);
+    if (this.wanderPhase === undefined) this.wanderPhase = rand(TAU);
+    // `range` (fractions of screen width for the vehicle's centre) overrides the attack zone.
+    const lo = range ? g.W * range[0] : g.W * V.zone + this.backLen;
+    const hi = range ? g.W * range[1] : g.W - this.frontLen - 12;
     let tx = g.W * this.station + Math.sin(this.age * wanderFreq + this.wanderPhase) * g.W * wanderAmp;
     tx = lo < hi ? clamp(tx, lo, hi) : (lo + hi) / 2;
     for (const o of g.vehicles) {
@@ -450,9 +450,16 @@ export class Tank extends Vehicle {
     this.turret = -0.8;
     this.state = 'reload';
     this.timer = 2.5;
+    this.restation = 0;
     this.aimX = 0;
     this.aimY = 0;
     this.trackDist = 0;
+  }
+
+  /** The tank shells the player anywhere on screen once it is in view. */
+  canFire() {
+    const g = this.game;
+    return !this.retreating && g.player.alive && this.right > 0 && this.left < g.W;
   }
 
   pivot(alpha = 1) {
@@ -462,8 +469,12 @@ export class Tank extends Vehicle {
   update(dt) {
     const g = this.game, p = g.player;
     this.updateCommon(dt);
-    // Holds a slow-drifting firing position and shells from long range.
-    const tx = this.target(0.05, 0.25);
+    // Parks at random spots 45%-25% in from the right edge, re-picking every few seconds.
+    if ((this.restation -= dt) <= 0) {
+      this.station = rand(V.tank.range[0], V.tank.range[1]);
+      this.restation = rand(V.tank.restation[0], V.tank.restation[1]);
+    }
+    const tx = this.target(0.015, 0.4, V.tank.range);
     this.drive(dt, tx, this.drive_);
     this.ch.moveTo(this.x);
     this.ch.step(dt, this.groundFn(), this.accel, this.u);
@@ -495,7 +506,7 @@ export class Tank extends Vehicle {
         if (this.timer > V.tank.lock) {
           // Lead the target: where the player will be when the shell arrives.
           const T = Math.hypot(p.x - piv.x, p.y - piv.y) / S;
-          this.aimX = clamp(p.x + p.vx * T, g.W * V.zone, g.W - 10);
+          this.aimX = clamp(p.x + p.vx * T, 10, g.W - 10);
           this.aimY = clamp(p.y + p.vy * T, 10, g.H - 70);
         }
         this.aimAt(piv, this.aimX, this.aimY, dt, 2.2);
@@ -505,7 +516,10 @@ export class Tank extends Vehicle {
   }
 
   aimAt(piv, x, y, dt, rate) {
-    const want = clamp(Math.atan2(y - piv.y, x - piv.x), -Math.PI + 0.06, -0.06);
+    // Full sweep across the screen; only steep downward angles are blocked by the hull.
+    let want = Math.atan2(y - piv.y, x - piv.x);
+    if (want > 0.3 && want <= Math.PI / 2) want = 0.3;
+    else if (want > Math.PI / 2 && want < Math.PI - 0.3) want = Math.PI - 0.3;
     this.turret += clamp(angleDiff(this.turret, want), -rate * dt, rate * dt);
   }
 

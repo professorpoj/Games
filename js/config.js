@@ -100,7 +100,8 @@ export const VEHICLES = {
   mortarFlight: [2.3, 2.9], // seconds from launch to airburst
   zone: 0.6,             // vehicles hold, fire and aim only in the screen's right 40% (from 60% across)
   truck: { hp: 16, score: 800, salvo: 3, interval: [2.6, 3.4], aoe: 34, life: 28 },
-  tank: { hp: 60, score: 2500, interval: [3.2, 4.2], aim: 1.3, lock: 0.35, shellSpeed: 340, aoe: 58, life: 32 },
+  tank: { hp: 60, score: 2500, interval: [3.2, 4.2], aim: 1.3, lock: 0.35, shellSpeed: 340, aoe: 58, life: 32,
+    range: [0.55, 0.75], restation: [4, 7] }, // parks at random spots 45%-25% in from the right edge; fires across the whole screen
   train: { locoHp: 40, moduleHp: 14, score: 3000, moduleScore: 500, modules: 3, interval: [3.8, 5.2], missileSpeed: 100, life: 38 },
   unlock: { truck: 2, tank: 4, train: 6 },  // first wave each type appears (guaranteed)
 };

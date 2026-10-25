@@ -27,6 +27,7 @@ export class Player {
     this.missileCd = 0;   // P levels past max power: 1-7 orange, 8-14 red, 15-16 neon lasers
     this.laser = 0;       // neon laser output, ramps 0..1 while FIRE is held
     this.tilt = 0;
+    this.pullX = this.pullY = 0;
     this.invuln = 0;
     this.entry = 0;
     this.fireCd = 0;
@@ -49,6 +50,7 @@ export class Player {
     this.entry = 0.55;
     this.fireCd = 0;
     this.tilt = 0;
+    this.pullX = this.pullY = 0;
     this.shieldOn = false;
     for (const w of this.wings) {
       w.x = w.px = this.x;
@@ -240,6 +242,11 @@ export class Player {
       this.vy += (input.moveY * PLAYER.speed - this.vy) * k;
       this.x += this.vx * dt;
       this.y += this.vy * dt;
+    }
+
+    if (this.entry <= 0 && (this.pullX || this.pullY)) {
+      this.x += this.pullX * dt;
+      this.y += this.pullY * dt;
     }
 
     if (this.x < b.minX) { this.x = b.minX; if (this.vx < 0) this.vx = 0; }

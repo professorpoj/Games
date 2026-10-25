@@ -94,9 +94,33 @@ export class Director {
       const delay = i === 0 ? 0 : Math.max(2.5, rand(3.5, 6.5) - Math.min(w * 0.15, 1.5));
       this.queue.push({ delay, spec: this.makeSpec(tpl.make(budget, w)) });
     }
+    // Each type introduced after a mothership battle flies in its own swarm:
+    // 1 ship on its debut wave, +1 per wave after (same growth as every swarm).
+    let debut = '';
+    for (const [type, def] of Object.entries(ENEMY_TYPES)) {
+      if (!def.debut || w < def.debut) continue;
+      if (w === def.debut) debut = def.name;
+      const n = Math.min(1 + (w - def.debut) * SWARM_GROWTH.perWave, SWARM_GROWTH.maxSize);
+      this.queue.splice(randInt(1, this.queue.length), 0, { delay: rand(3, 5.5), spec: this.newTypeSpec(type, n) });
+    }
     this.addGroundUnits(w);
     this.phase = 'active';
-    if (!this.demo) this.game.showBanner(`WAVE ${w}`, w % 5 === 0 ? 'FLAGSHIP INBOUND' : '');
+    const sub = debut ? `NEW ENEMY: ${debut.toUpperCase()}` : w % 5 === 0 ? 'FLAGSHIP INBOUND' : '';
+    if (!this.demo) this.game.showBanner(`WAVE ${w}`, sub);
+  }
+
+  newTypeSpec(type, n) {
+    const { H } = this.game;
+    return {
+      members: Array(n).fill(type),
+      leaders: [],
+      path: choose(ENEMY_TYPES[type].paths),
+      shapes: shuffle(shapesFor(Math.max(n, 3))).slice(0, randInt(4, 6)),
+      y: rand(0.28, 0.62) * (H - GROUND_H),
+      speed: rand(75, 105) + Math.min(this.wave * 2, 40),
+      holdTime: rand(9, 13),
+      enhanceChance: 0,
+    };
   }
 
   /** Whether another vehicle of this type fits beside the ones already in the attack zone. */

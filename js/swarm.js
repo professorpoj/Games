@@ -48,7 +48,7 @@ export class Swarm {
     const enhanceChance = spec.enhanceChance ?? game.enhanceChance ?? 0;
     const enh = () => Math.random() < enhanceChance;
     let maxR = 0;
-    for (const t of spec.members) maxR = Math.max(maxR, ENEMY_TYPES[t].r);
+    for (const t of spec.members) maxR = Math.max(maxR, ENEMY_TYPES[t].space ?? ENEMY_TYPES[t].r);
     this.spacing = Math.max(30, maxR * 2.5);
 
     for (const t of spec.members) {

@@ -72,6 +72,18 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 | Seeker | cyan diamond with an eye | 5 | Aims a laser sight at you, locks on (turns red), then fires a 3-needle burst |
 | Bulwark | large purple octagon | 32 | Flagship: alternates 5-way spread volleys with homing missiles you can shoot down |
 
+### New enemies (one after each mothership battle)
+
+Each one debuts on the wave right after a mothership fight (the wave banner says **NEW ENEMY**) and flies in **its own swarm**: 1 ship on its debut wave, +1 ship every wave after (the same +1 per wave growth as every swarm, up to 40). They never spawn as Mk II. Each attack is built on real physics. Tuning lives at the top of `js/ordnance.js` and in `js/enemies.js`.
+
+| Type (debut) | Shape / color | HP | Attack |
+|---|---|---|---|
+| Bouncer (wave 6) | lime ball | 3 | Lobs heavy balls under gravity that **bounce off the actual terrain** (the slope decides the bounce angle) and off the top of the screen. Each bounce loses some energy, and friction with the scrolling ground drags them along with it. Balls can be shot down (2 HP). |
+| Splitter (wave 11) | white split block | 4 | Fires a **fission core** that swells, flickers and splits in two, then each half splits again (1 → 2 → 4). Every split pushes the halves apart with equal and opposite kicks, so **momentum is conserved** and the fragments fan out predictably. Shooting a core just makes it split early; the shield erases fragments. |
+| Graviton (wave 16) | blue pentagon | 6 | Launches a **gravity well** that drag slows to a drift before it switches on for 4 s (rings show its pull range). Every bullet nearby feels a softened **inverse-square pull** (enemy shots slingshot around it, and your own shots bend and get swallowed by the core), and your ship is dragged toward it at up to 150 units/s, which you can always outfly. The core is deadly to touch (the shield protects you). At most 3 wells at once. |
+| Flail (wave 21) | copper diamond + chain | 6 | A spiked mace on a **simulated chain** (verlet links with a heavy head) that swings and trails as the ship flies and rests on the ground when it hangs low. To attack it **spins the mace up** (a dashed line shows its current flight direction, sweeping like a lighthouse) and **lets go when that line points at you**, so the mace flies off with its real momentum, under gravity, and bounces on the terrain. The swinging mace is deadly, blocks your shots and isn't stopped by the shield. Thrown maces can be shot down (4 HP). Kill a Flail and its mace flies off with whatever momentum it had. |
+| Deflector (wave 26) | teal chevron + mirror | 8 | Carries a **mirror plate** that it turns (at a limited rate) to face you. Your shots that hit the mirror are **reflected** (angle in = angle out, relative to the moving mirror) and come back as slower orange needles, so firing straight at it shoots yourself. Hit it from above or below, move so the mirror lags behind you, or use lasers, which burn straight through. |
+
 ### Ground vehicles
 
 Fast ground units race in from off-screen left (a blinking **!** chevron at the left edge warns you), brake down to match the scroll speed, then hold their own positions in the **right 40% of the screen**. They don't track your X position, so you can line up shots on them. They only fire from inside that zone, and **every shot is aimed inside it too**: mortar bursts, tank crosshairs and missile homing all stay in the right 40%, and missiles self-destruct at the zone's left edge. The left side of the screen is safe from ground fire. Vehicle ordnance is deliberately slow. Only as many vehicles as fit in the zone are on screen at once; the rest wait their turn. Each body rides **spring/damper suspension over the actual terrain**, so it bounces, pitches over bumps, squats when accelerating, dives when braking and rocks back when it fires. Wheels spin with ground speed, and dust kicks up behind them. Flying into a vehicle kills you, and they leave after about 30 seconds if you don't destroy them.
@@ -190,6 +202,7 @@ js/director.js        wave building, difficulty ramp, mothership visits
 js/mothership.js      the boss: laser, hangar swarms, abilities per visit
 js/vehicles.js        ground vehicles: suspension physics, driving AI, placeholder art
 js/projectiles.js     mortar / tank shell / wave-missile ordnance, blasts and warning markers
+js/ordnance.js        new-enemy physics ordnance: bouncing balls, fission cores, gravity wells, flail maces
 js/background.js      procedural tiling parallax layers, palette stages
 js/decor.js           background decor themes (one per 5-wave stage)
 js/particles.js, js/sprites.js, js/hud.js, js/audio.js

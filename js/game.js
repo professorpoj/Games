@@ -12,11 +12,12 @@ import { Director } from './director.js';
 import { Mothership } from './mothership.js';
 import { makeVehicle } from './vehicles.js';
 import { HEAVY, updateHeavy, drawHeavy, drawHeavyWarnings, fizzle } from './projectiles.js';
-import { updateEnemy, drawEnemy, drawTelegraph, ENHANCED_SCORE } from './enemies.js';
+import { updateEnemy, drawEnemy, drawTelegraph, ENHANCED_SCORE, armorHit, reflectBolt, maceHead, onEnemyDeath, MACE_R } from './enemies.js';
+import { ORDNANCE, ORDNANCE_R, updateOrdnance, applyWells, wellPull, drawOrdnance, splitFission } from './ordnance.js';
 import { Sfx } from './audio.js';
 import { drawHud, drawControls } from './hud.js';
 
-const BULLET_R = { orb: 5, big: 8, needle: 3.5, missile: 6 };
+const BULLET_R = { orb: 5, big: 8, needle: 3.5, missile: 6, ...ORDNANCE_R };
 const POWERUP_COLOR = { P: '#ffd23f', B: '#ff5fd2', W: '#5dff7a', H: '#ff7b3a' };
 const PLAYER_SHOT_R = { shot: 5, orange: 5, red: 5, wing: 4, wblue: 4, worange: 4, wred: 4, wbomb: 7, pmissile: 5 };
 const WING_BOLT_COLOR = { wing: '#5dff7a', wblue: '#4cc9f0', worange: '#ff9a2e', wred: '#ff3b3b' };
@@ -327,6 +328,7 @@ export class Game {
 
   killEnemy(e) {
     const big = e.type === 'bulwark';
+    onEnemyDeath(e, this);
     this.particles.explosion(e.x, e.y, e.def.color, big ? 3 : e.r / 12);
     this.sfx.play(big ? 'bigExplode' : 'explode');
     this.shake = Math.max(this.shake, big ? 12 : 2.5);
@@ -436,6 +438,7 @@ export class Game {
     }
     this.updateEnemies(dt);
     this.updateBullets(dt);
+    applyWells(this, dt);
     this.updatePowerups(dt);
     this.updateBomb(dt);
     this.collide();
@@ -459,6 +462,8 @@ export class Game {
   updatePlayer(dt) {
     const p = this.player;
     if (p.alive) {
+      // Gravity wells drag the ship along like a current.
+      [p.pullX, p.pullY] = wellPull(this, p.x, p.y);
       p.update(dt, this.input);
       return;
     }
@@ -565,6 +570,7 @@ export class Game {
         const rr = b.r + hw;
         if (segDist2(b.x, b.y, x0, y0, x1, y1) < rr * rr && (b.hp -= burn) <= 0) {
           b.dead = true;
+          if (b.kind === 'fission' && splitFission(this, b)) continue;
           if (HEAVY.has(b.kind)) fizzle(this, b);
           else this.particles.explosion(b.x, b.y, '#ff6ad5', 0.5);
         }
@@ -665,6 +671,10 @@ export class Game {
     for (const b of this.eBullets.list) {
       if (HEAVY.has(b.kind)) {
         updateHeavy(b, dt, this);
+        continue;
+      }
+      if (ORDNANCE.has(b.kind)) {
+        updateOrdnance(b, dt, this);
         continue;
       }
       b.px = b.x;
@@ -842,7 +852,7 @@ export class Game {
 
   shieldBubble(x, y, R) {
     for (const b of this.eBullets.list) {
-      if (b.dead) continue;
+      if (b.dead || b.kind === 'well') continue;
       const rr = R + b.r;
       if (segDist2(x, y, b.px, b.py, b.x, b.y) < rr * rr) {
         b.dead = true;
@@ -867,7 +877,7 @@ export class Game {
         if (b.dead || b.kind === 'mortar' || b.kind === 'shell') continue;
         const rr = hr + b.r * 0.8;
         if (segDist2(w.x, w.y, b.px, b.py, b.x, b.y) < rr * rr) {
-          b.dead = true;
+          if (b.kind !== 'well') b.dead = true;
           hit = true;
           break;
         }
@@ -875,6 +885,11 @@ export class Game {
       if (!hit) {
         for (const e of this.enemies) {
           if (e.dead) continue;
+          const m = maceHead(e);
+          if (m && (m.x - w.x) ** 2 + (m.y - w.y) ** 2 < (hr + MACE_R * 0.85) ** 2) {
+            hit = true;
+            break;
+          }
           const dx = e.x - w.x, dy = e.y - w.y, rr = hr + e.r * 0.8;
           if (dx * dx + dy * dy < rr * rr) {
             this.damageEnemy(e, 8, e.x, e.y);
@@ -928,6 +943,19 @@ export class Game {
       if (b.dead) continue;
       for (const e of this.enemies) {
         if (e.dead || e.x > W + e.r) continue;
+        const armor = armorHit(e, b);
+        if (armor) {
+          // Maces and mirrors stop shots; mirrors bounce them back.
+          b.dead = true;
+          if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
+          else if (armor === 'plate' && b.kind !== 'pmissile') reflectBolt(this, e, b);
+          else {
+            this.particles.hit(b.x, b.y, '#e8e0d8');
+            this.sfx.play('deflect');
+            this.missileBurst(b);
+          }
+          break;
+        }
         const dx = b.x - e.x, dy = b.y - e.y, rr = e.r + b.r;
         if (dx * dx + dy * dy < rr * rr) {
           b.dead = true;
@@ -952,6 +980,8 @@ export class Game {
           m.hp -= b.dmg;
           this.particles.hit(b.x, b.y, '#ff6ad5');
           if (m.hp <= 0) {
+            // Shooting a fission core early just makes it split sooner.
+            if (m.kind === 'fission' && splitFission(this, m)) break;
             m.dead = true;
             if (HEAVY.has(m.kind)) fizzle(this, m);
             else this.particles.explosion(m.x, m.y, '#ff6ad5', 0.5);
@@ -982,16 +1012,23 @@ export class Game {
     }
     for (const b of this.eBullets.list) {
       if (b.dead || b.kind === 'mortar' || b.kind === 'shell') continue;
+      if (b.kind === 'well' && p.shieldOn) continue;
       const rr = hr + b.r * 0.8;
       // Swept test so fast needles can't tunnel through the tiny hitbox.
       if (segDist2(p.x, p.y, b.px, b.py, b.x, b.y) < rr * rr) {
-        b.dead = true;
+        if (b.kind !== 'well') b.dead = true;
         this.killPlayer();
         return;
       }
     }
     for (const e of this.enemies) {
       if (e.dead) continue;
+      // An attached flail mace is solid and deadly (the shield doesn't stop a swinging mace).
+      const m = maceHead(e);
+      if (m && (m.x - p.x) ** 2 + (m.y - p.y) ** 2 < (hr + MACE_R * 0.85) ** 2) {
+        this.killPlayer();
+        return;
+      }
       const dx = e.x - p.x, dy = e.y - p.y, rr = hr + e.r * 0.8;
       if (dx * dx + dy * dy < rr * rr) {
         this.damageEnemy(e, 8, e.x, e.y);
@@ -1170,6 +1207,10 @@ export class Game {
       const x = L(b.px, b.x), y = L(b.py, b.y);
       if (HEAVY.has(b.kind)) {
         drawHeavy(ctx, b, x, y, this.time, this.sprites);
+        continue;
+      }
+      if (ORDNANCE.has(b.kind)) {
+        drawOrdnance(ctx, b, x, y, this.time, this.sprites);
         continue;
       }
       if (b.kind === 'needle' || b.kind === 'missile') {

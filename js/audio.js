@@ -167,6 +167,22 @@ export class Sfx {
         this.noise(0.25, 0.1, 3000, 600);
         this.tone('triangle', 300, 900, 0.22, 0.05);
         break;
+      case 'bounce':
+        if (this.throttle(name, 0.06)) this.tone('sine', 220, 90, 0.09, 0.08);
+        break;
+      case 'split':
+        if (this.throttle(name, 0.05)) this.tone('square', 900, 1400, 0.05, 0.03);
+        break;
+      case 'well':
+        if (this.throttle(name, 0.2)) this.tone('sine', 260, 60, 0.6, 0.1);
+        break;
+      case 'sling':
+        this.noise(0.25, 0.12, 2400, 400);
+        this.tone('sawtooth', 160, 420, 0.18, 0.04);
+        break;
+      case 'reflect':
+        if (this.throttle(name, 0.05)) this.tone('triangle', 2200, 1600, 0.05, 0.04);
+        break;
       case 'extra':
         [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.1, i * 0.09));
         break;

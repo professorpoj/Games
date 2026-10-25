@@ -14,12 +14,12 @@ export class Player {
     this.entry = 0;
     this.fireCd = 0;
     this.respawnTimer = 0;
-    this.wingLevel = 0;
-    this.wingBombCd = 0;
     this.shield = 1;        // meter, 0..1
     this.shieldOn = false;
     // [0] flies above the ship, [1] below.
-    this.wings = [-1, 1].map((side) => ({ side, x: 0, y: 0, px: 0, py: 0 }));
+    // level 0 = no wingman in that slot.
+    this.wings = [-1, 1].map((side) => ({ side, level: 0, x: 0, y: 0, px: 0, py: 0, bombCd: 0, invuln: 0 }));
+    this.lastWingUpgraded = 1;
   }
 
   spawn() {
@@ -32,11 +32,11 @@ export class Player {
     this.entry = 0.55;
     this.fireCd = 0;
     this.tilt = 0;
-    this.wingBombCd = 0;
     this.shieldOn = false;
     for (const w of this.wings) {
       w.x = w.px = this.x;
       w.y = w.py = this.y;
+      w.bombCd = 0;
     }
   }
 
@@ -64,25 +64,38 @@ export class Player {
     }
   }
 
-  // ---- wingmen: level 1 top, 2 bottom, 3 top x2, 4 bottom x2, 5 top x3, 6 bottom x3, 7+ bombs
+  // ---- wingmen
 
-  get wingCount() {
-    return Math.min(2, this.wingLevel);
+  clearWings() {
+    for (const w of this.wings) w.level = 0;
+    this.lastWingUpgraded = 1;
   }
 
-  wingRounds(i) {
-    const lvl = Math.min(this.wingLevel, WINGMAN.gunLevels);
-    return i === 0 ? Math.ceil(lvl / 2) : Math.floor(lvl / 2);
+  /**
+   * Apply one W pickup: the weaker wingman gets it (so a lost wingman is rebuilt
+   * first); on a tie the upgrade goes to the one that didn't get the last one.
+   * Returns the upgraded wingman, or null when both are maxed.
+   */
+  addWingLevel() {
+    const [a, b] = this.wings;
+    let i;
+    if (a.level !== b.level) i = a.level < b.level ? 0 : 1;
+    else i = this.lastWingUpgraded === 0 ? 1 : 0;
+    const w = this.wings[i];
+    if (w.level >= WINGMAN.maxLevel) return null;
+    if (w.level === 0) {
+      w.x = w.px = this.x;
+      w.y = w.py = this.y;
+      w.invuln = WINGMAN.spawnInvuln;
+      w.bombCd = 0;
+    }
+    w.level++;
+    this.lastWingUpgraded = i;
+    return w;
   }
 
-  /** 0 = no bombs; 1 = top wingman bombs; 2+ = both bomb, faster each level. */
-  get wingBombLevel() {
-    return Math.max(0, this.wingLevel - WINGMAN.gunLevels);
-  }
-
-  wingBombInterval() {
-    const steps = WINGMAN.maxLevel - WINGMAN.gunLevels - 2;
-    const t = clamp((this.wingBombLevel - 2) / steps, 0, 1);
+  wingBombInterval(w) {
+    const t = clamp((w.level - WINGMAN.maxRounds - 1) / (WINGMAN.maxLevel - WINGMAN.maxRounds - 1), 0, 1);
     return WINGMAN.bombIntervalMax + (WINGMAN.bombIntervalMin - WINGMAN.bombIntervalMax) * t;
   }
 
@@ -91,6 +104,7 @@ export class Player {
     for (const w of this.wings) {
       w.px = w.x;
       w.py = w.y;
+      w.invuln = Math.max(0, w.invuln - dt);
       const ty = clamp(this.y + w.side * WINGMAN.offsetY, 10, H - GROUND_H + 24);
       w.x += (this.x + WINGMAN.offsetX - w.x) * k;
       w.y += (ty - w.y) * k;
@@ -158,22 +172,22 @@ export class Player {
       }
     } else if (this.fireCd < 0) this.fireCd = 0;
 
-    this.wingBombCd -= dt;
-    const bombers = Math.min(this.wingBombLevel, 2);
-    if (input.fire && bombers > 0 && this.wingBombCd <= 0) {
-      for (let i = 0; i < bombers; i++) {
-        const w = this.wings[i];
+    for (const w of this.wings) {
+      if (w.level <= WINGMAN.maxRounds) continue;
+      w.bombCd -= dt;
+      if (input.fire && w.bombCd <= 0) {
         this.game.firePlayer(w.x + 10, w.y, WINGMAN.bombSpeed, 0, WINGMAN.bombDamage, 'wbomb');
-      }
-      this.game.sfx.play('wingBomb');
-      this.wingBombCd = this.wingBombInterval();
-    } else if (!input.fire && this.wingBombCd < 0) this.wingBombCd = 0;
+        this.game.sfx.play('wingBomb');
+        w.bombCd = this.wingBombInterval(w);
+      } else if (!input.fire && w.bombCd < 0) w.bombCd = 0;
+    }
   }
 
   shootWings() {
     const g = this.game, S = PLAYER.bulletSpeed, dmg = WINGMAN.bulletDamage;
-    for (let i = 0; i < this.wingCount; i++) {
-      const w = this.wings[i], n = this.wingRounds(i), x = w.x + 12;
+    for (const w of this.wings) {
+      if (!w.level) continue;
+      const n = Math.min(w.level, WINGMAN.maxRounds), x = w.x + 12;
       if (n === 1) g.firePlayer(x, w.y, S, 0, dmg, 'wing');
       else if (n === 2) {
         g.firePlayer(x, w.y - 4, S, 0, dmg, 'wing');
@@ -270,12 +284,13 @@ function drawShip(ctx, x, y, tilt, vx, t, scale, colors) {
 
 /** Placeholder hero ship (pale blue) plus its small green wingmen. */
 export function drawPlayer(ctx, x, y, p, t, alpha) {
-  const blink = p.invuln > 0 && Math.floor(t * 18) % 2;
-  if (blink) ctx.globalAlpha = 0.35;
-  for (let i = 0; i < p.wingCount; i++) {
-    const w = p.wings[i];
+  const blinking = (inv) => inv > 0 && Math.floor(t * 18) % 2;
+  p.wings.forEach((w, i) => {
+    if (!w.level) return;
+    ctx.globalAlpha = blinking(Math.max(w.invuln, p.invuln)) ? 0.35 : 1;
     drawShip(ctx, w.px + (w.x - w.px) * alpha, w.py + (w.y - w.py) * alpha, p.tilt, p.vx, t + i, 0.55, WING_COLORS);
-  }
+  });
+  ctx.globalAlpha = blinking(p.invuln) ? 0.35 : 1;
   drawShip(ctx, x, y, p.tilt, p.vx, t, 1, HERO_COLORS);
   ctx.globalAlpha = 1;
 }

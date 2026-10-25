@@ -154,7 +154,7 @@ export class Game {
     this.gameOverTimer = 0;
     this.timeScale = 1;
     this.player.power = 1;
-    this.player.wingLevel = 0;
+    this.player.clearWings();
     this.player.shield = 1;
     this.player.shieldOn = false;
     this.director.reset(demo);
@@ -303,8 +303,8 @@ export class Game {
     this.lives--;
     // Losing a ship wipes out the wingmen (rebuild them with W pickups);
     // the ship's own weapon power is kept.
-    for (let i = 0; i < p.wingCount; i++) this.particles.explosion(p.wings[i].x, p.wings[i].y, '#5dff7a', 0.8);
-    p.wingLevel = 0;
+    for (const w of p.wings) if (w.level) this.particles.explosion(w.x, w.y, '#5dff7a', 0.8);
+    p.clearWings();
     this.chain = 0;
     if (this.lives <= 0) this.gameOverTimer = 2;
   }
@@ -487,14 +487,14 @@ export class Game {
         this.particles.text(p.x, p.y - 26, '+1000', '#ffd23f', 14);
       }
     } else if (u.kind === 'W') {
-      if (p.wingLevel < WINGMAN.maxLevel) {
-        p.wingLevel++;
-        const lvl = p.wingLevel, gun = WINGMAN.gunLevels;
+      const w = p.addWingLevel();
+      if (w) {
+        const side = w.side < 0 ? 'TOP' : 'BOTTOM', lvl = w.level, R = WINGMAN.maxRounds;
         let msg;
-        if (lvl <= 2) msg = lvl === 1 ? 'WINGMAN!' : 'SECOND WINGMAN!';
-        else if (lvl <= gun) msg = `WINGMAN ${lvl % 2 ? 'TOP' : 'BOTTOM'} x${Math.ceil(lvl / 2)} SHOT`;
-        else if (lvl <= gun + 2) msg = 'WINGMAN BOMBS!';
-        else msg = lvl === WINGMAN.maxLevel ? 'WING BOMBS MAX' : 'WING BOMB RATE UP';
+        if (lvl === 1) msg = `${side} WINGMAN!`;
+        else if (lvl <= R) msg = `${side} WINGMAN x${lvl} SHOT`;
+        else if (lvl === R + 1) msg = `${side} WINGMAN BOMBS!`;
+        else msg = lvl === WINGMAN.maxLevel ? `${side} BOMBS MAX` : `${side} BOMB RATE UP`;
         this.particles.text(p.x, p.y - 26, msg, '#5dff7a', 14);
       } else {
         this.score += 2000;
@@ -548,16 +548,63 @@ export class Game {
   /** Destroy every enemy bullet (missiles included) that touches the shield bubble. */
   shieldBlock() {
     const p = this.player;
+    this.shieldBubble(p.x, p.y, SHIELD.radius);
+    for (const w of p.wings) if (w.level) this.shieldBubble(w.x, w.y, SHIELD.wingRadius);
+  }
+
+  shieldBubble(x, y, R) {
     for (const b of this.eBullets.list) {
       if (b.dead) continue;
-      const rr = SHIELD.radius + b.r;
-      if (segDist2(p.x, p.y, b.px, b.py, b.x, b.y) < rr * rr) {
+      const rr = R + b.r;
+      if (segDist2(x, y, b.px, b.py, b.x, b.y) < rr * rr) {
         b.dead = true;
-        const a = Math.atan2(b.y - p.y, b.x - p.x);
-        this.particles.add('spark', p.x + Math.cos(a) * SHIELD.radius, p.y + Math.sin(a) * SHIELD.radius,
-          Math.cos(a) * 160, Math.sin(a) * 160, 0.2, 2, '#7df9ff');
+        const a = Math.atan2(b.y - y, b.x - x);
+        this.particles.add('spark', x + Math.cos(a) * R, y + Math.sin(a) * R, Math.cos(a) * 160, Math.sin(a) * 160, 0.2, 2, '#7df9ff');
         this.sfx.play('deflect');
       }
+    }
+  }
+
+  /** Wingmen die exactly like the ship: any enemy bullet or enemy body. */
+  collideWingmen() {
+    const p = this.player, hr = WINGMAN.hitRadius;
+    for (const w of p.wings) {
+      if (!w.level || w.invuln > 0) continue;
+      let hit = false;
+      for (const b of this.eBullets.list) {
+        if (b.dead) continue;
+        const rr = hr + b.r * 0.8;
+        if (segDist2(w.x, w.y, b.px, b.py, b.x, b.y) < rr * rr) {
+          b.dead = true;
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) {
+        for (const e of this.enemies) {
+          if (e.dead) continue;
+          const dx = e.x - w.x, dy = e.y - w.y, rr = hr + e.r * 0.8;
+          if (dx * dx + dy * dy < rr * rr) {
+            this.damageEnemy(e, 8, e.x, e.y);
+            hit = true;
+            break;
+          }
+        }
+      }
+      if (hit) this.wingmanDown(w);
+    }
+  }
+
+  wingmanDown(w) {
+    w.level = 0;
+    this.particles.explosion(w.x, w.y, '#5dff7a', 1.3);
+    this.particles.text(w.x, w.y - 18, 'WINGMAN DOWN', '#ff6b6b', 13);
+    this.sfx.play('explode');
+    this.shake = Math.max(this.shake, 6);
+    try {
+      navigator.vibrate?.(40);
+    } catch {
+      /* unsupported */
     }
   }
 
@@ -599,6 +646,7 @@ export class Game {
     }
 
     if (p.alive && p.shieldOn) this.shieldBlock();
+    if (p.alive && p.invuln <= 0 && p.entry <= 0) this.collideWingmen();
     if (!p.alive || p.invuln > 0 || p.entry > 0) return;
     const hr = PLAYER.hitRadius;
     for (const b of this.eBullets.list) {
@@ -684,7 +732,7 @@ export class Game {
     const p = this.player;
     if (p.alive) drawPlayer(ctx, L(p.px, p.x), L(p.py, p.y), p, t, alpha);
 
-    if (p.alive && p.shieldOn) this.drawShield(ctx, L(p.px, p.x), L(p.py, p.y), t);
+    if (p.alive && p.shieldOn) this.drawShield(ctx, L, t);
     this.drawEnemyBullets(ctx, L);
     this.particles.render(ctx, this.sprites);
 
@@ -710,11 +758,16 @@ export class Game {
     }
   }
 
-  drawShield(ctx, x, y, t) {
+  drawShield(ctx, L, t) {
     const p = this.player;
     // Flicker as a warning when the meter is nearly empty.
     if (p.shield < 0.2 && Math.floor(t * 16) % 2) return;
-    const r = SHIELD.radius + Math.sin(t * 9) * 1.5;
+    this.drawBubble(ctx, L(p.px, p.x), L(p.py, p.y), SHIELD.radius, t);
+    for (const w of p.wings) if (w.level) this.drawBubble(ctx, L(w.px, w.x), L(w.py, w.y), SHIELD.wingRadius, t);
+  }
+
+  drawBubble(ctx, x, y, radius, t) {
+    const r = radius + Math.sin(t * 9) * 1.5;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.drawImage(this.sprites.glow('#7df9ff', r / 2), x - r, y - r, r * 2, r * 2);

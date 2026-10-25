@@ -52,9 +52,11 @@ export function drawHud(ctx, g) {
     ctx.fillStyle = i < power ? '#ffd23f' : 'rgba(255,255,255,0.18)';
     ctx.fillRect(L + i * 11, T + 54, 8, 5);
   }
-  if (g.player.wingLevel > 0) {
+  const [wt, wb] = g.player.wings;
+  if (wt.level || wb.level) {
+    // Top / bottom wingman levels ("-" = slot empty).
     ctx.font = `800 11px ${SANS}`;
-    shadowText(ctx, `W${g.player.wingLevel}`, L + PLAYER.maxPower * 11 + 6, T + 51, '#5dff7a');
+    shadowText(ctx, `W ${wt.level || '-'}/${wb.level || '-'}`, L + PLAYER.maxPower * 11 + 6, T + 51, '#5dff7a');
   }
 
   // Shield meter.

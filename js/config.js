@@ -29,11 +29,15 @@ export const PLAYER = {
   maxPower: 4,
 };
 
-// Wingmen from rare green "W" pickups. Levels 1-6 add wingmen and rounds
-// (top, bottom, top, bottom...), levels 7+ give them bombs and then faster bombs.
+// Wingmen from rare green "W" pickups. Each wingman has its own level:
+// 1-3 = rounds per shot, 4 = launches bombs, 5-7 = faster bombs.
+// A W always upgrades the weaker wingman (rebuilding a lost one first);
+// when they're equal, upgrades alternate between them.
 export const WINGMAN = {
-  gunLevels: 6,          // W pickups spent on wingmen + rounds (3 rounds each at 6)
-  maxLevel: 14,          // 6 gun levels + 8 bomb levels; later Ws give points
+  maxRounds: 3,          // levels 1-3: rounds per shot
+  maxLevel: 7,           // per wingman; once both are maxed, Ws give points
+  hitRadius: 5,          // wingmen can be shot down or rammed, like your ship
+  spawnInvuln: 1.5,      // brief protection when a wingman (re)joins
   offsetX: -14,
   offsetY: 36,
   follow: 16,            // how tightly they trail the ship (higher = stiffer)
@@ -41,8 +45,8 @@ export const WINGMAN = {
   bombDamage: 3,
   bombRadius: 60,
   bombSpeed: 520,
-  bombIntervalMax: 1.5,  // seconds between bombs at the first bomb levels
-  bombIntervalMin: 0.6,  // at max level
+  bombIntervalMax: 1.5,  // seconds between bombs at level 4
+  bombIntervalMin: 0.6,  // at level 7
   dropMul: 0.25,         // W drop chance = enemy drop chance x this
 };
 
@@ -53,6 +57,7 @@ export const SHIELD = {
   rechargeRatio: 5,      // full recharge takes duration x this (20 s)
   minToActivate: 0.15,   // meter needed to raise it again
   radius: 30,
+  wingRadius: 16,        // smaller bubble around each wingman while the shield is up
 };
 
 export const CONTROLS = {

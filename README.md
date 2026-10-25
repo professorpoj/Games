@@ -40,18 +40,14 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 - **Fixed 120 Hz simulation with render interpolation.** Movement and collisions behave the same on 60, 90 and 120 Hz screens.
 - **Precise ship.** It speeds up and slows down quickly, stops at the screen edges without bouncing, and has a tiny 4-unit hitbox. Fast bullets use swept collision so they can't pass through you between frames.
 - **Weapon power 1–4** from **P** pickups. **B** pickups add bombs. Weapon power is kept when you lose a ship.
-- **Wingmen** from rare green **W** pickups (Bulwarks drop one half the time). Each W upgrades them in this order:
-  1. Top wingman (1 round per shot)
-  2. Bottom wingman (1 round)
-  3. Top fires 2 rounds
-  4. Bottom fires 2 rounds
-  5. Top fires 3 rounds
-  6. Bottom fires 3 rounds
-  7. Top wingman starts launching bombs (splash damage that also clears nearby bullets)
-  8. Bottom wingman launches bombs too
-  9. and up: faster bombs, until level 14. After that each W is worth 2,000 points.
+- **Wingmen** from rare green **W** pickups (Bulwarks drop one half the time). There are two wingmen, top and bottom, and each has its own level:
+  - Levels 1–3: 1, 2 or 3 rounds per shot
+  - Level 4: launches bombs (splash damage that also clears nearby bullets)
+  - Levels 5–7: bombs fire faster
 
-  Wingmen can't be hit, but losing a ship destroys them, so you have to rebuild from the first W. Tuning is under `WINGMAN` in `js/config.js`.
+  Each W goes to the weaker wingman, so a lost wingman is rebuilt first until it matches the other. When they're equal, upgrades alternate between them (top, bottom, top...). Once both are at level 7, each W is worth 2,000 points. The HUD shows their levels as `W top/bottom`.
+
+  Wingmen die like your ship does: one enemy bullet or collision. When one goes down the other keeps flying, and a newly joined wingman gets 1.5 s of protection. The shield gives each wingman its own small bubble. Losing your ship destroys both wingmen. Tuning is under `WINGMAN` in `js/config.js`.
 - **Chain multiplier** for quick kills in a row, a bonus for wiping out a whole swarm, a bonus for clearing a wave, and an extra ship every 75,000 points.
 - Brief slow motion and screen shake when you're hit. After respawning you're invulnerable for a moment.
 

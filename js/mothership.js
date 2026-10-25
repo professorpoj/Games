@@ -1,7 +1,7 @@
 // The mothership boss. Visit 1: heat-up laser + hangar swarms. Each return
 // visit adds abilities: 2 = side turrets, 3 = sweeping laser, 4+ = double
 // laser shots and homing missile salvos. Hull HP grows every visit.
-import { GROUND_H, MOTHERSHIP as M, PLAYER, WINGMAN } from './config.js';
+import { GROUND_H, MOTHERSHIP as M, PLAYER, WINGMAN, SWARM_GROWTH } from './config.js';
 import { shapesFor } from './formations.js';
 import { Swarm } from './swarm.js';
 import { TAU, rand, choose, clamp, damp, segDist2, shuffle } from './utils.js';
@@ -196,7 +196,9 @@ export class Mothership {
     const pool = ['drone', 'drone', 'drone'];
     if (this.visit >= 2) pool.push('darter', 'darter');
     if (this.visit >= 3) pool.push('spinner', 'sniper');
-    const n = Math.min(5 + this.visit + Math.floor(Math.random() * 3), 12);
+    // Hangar swarms grow with the wave count too (+1 ship per wave).
+    const extra = Math.max(0, g.director.wave - 1) * SWARM_GROWTH.perWave;
+    const n = Math.min(5 + Math.floor(Math.random() * 3) + extra, SWARM_GROWTH.maxSize);
     const members = Array.from({ length: n }, () => choose(pool));
     const origin = { x: this.x - M.rx * 0.2, y: this.y + M.ry * 0.55 };
     g.swarms.push(new Swarm(g, {

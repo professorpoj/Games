@@ -154,7 +154,7 @@ Each swarm follows a moving anchor point. It either flies straight across the sc
 
 When a ship is destroyed, the formation re-forms around the survivors. Bulwarks lead from behind their escorts.
 
-New enemy types unlock as waves go up. Every 5th wave brings a flagship. Fire rate, bullet speed and enemy HP increase over time.
+**Every swarm grows by one ship per wave** (wave 10 swarms have 9 more ships than wave 1, up to 40 per swarm), including the mothership's hangar swarms. New enemy types unlock as waves go up. Every 5th wave brings a flagship. Fire rate, bullet speed and enemy HP increase over time.
 
 ## Code layout
 

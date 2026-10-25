@@ -3,7 +3,7 @@
 import { Swarm } from './swarm.js';
 import { shapesFor } from './formations.js';
 import { ENEMY_TYPES } from './enemies.js';
-import { GROUND_H, VEHICLES } from './config.js';
+import { GROUND_H, VEHICLES, SWARM_GROWTH } from './config.js';
 import { rand, randInt, choose, clamp, weightedPick, shuffle } from './utils.js';
 
 const fill = (type, budget, min, max) =>
@@ -89,7 +89,8 @@ export class Director {
     for (let i = 0; i < nSwarms; i++) {
       let tpl = weightedPick(available, (t) => t.weight);
       if (i === 0 && w % 5 === 0) tpl = TEMPLATES.find((t) => t.fortress);
-      const budget = (7 + w * 2.4) * rand(0.85, 1.15);
+      // Composition is rolled from a wave-1 budget; size then grows +1 ship per wave (makeSpec).
+      const budget = 9.4 * rand(0.85, 1.15);
       const delay = i === 0 ? 0 : Math.max(2.5, rand(3.5, 6.5) - Math.min(w * 0.15, 1.5));
       this.queue.push({ delay, spec: this.makeSpec(tpl.make(budget, w)) });
     }
@@ -124,6 +125,10 @@ export class Director {
 
   makeSpec(t) {
     const { H } = this.game;
+    // Each wave adds one more ship to every swarm, drawn from the swarm's own types.
+    const base = t.members.slice();
+    const extra = Math.max(0, this.wave - 1) * SWARM_GROWTH.perWave;
+    for (let i = 0; i < extra && t.members.length < SWARM_GROWTH.maxSize; i++) t.members.push(choose(base));
     const n = t.members.length;
     const shapes = shuffle(shapesFor(n)).slice(0, randInt(4, 6));
     const path = choose(t.paths);

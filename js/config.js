@@ -109,6 +109,9 @@ export const CONTROLS = {
   dragSensitivity: 1.3,  // touch-drag mode: ship units moved per finger unit
 };
 
+// Every swarm gets this many extra ships per wave beyond wave 1 (wave 10 = +9).
+export const SWARM_GROWTH = { perWave: 1, maxSize: 40 };
+
 export const ENEMY_BULLET_CAP = 380;
 export const EXTRA_LIFE_EVERY = 75000;
 // Every chance of a P (weapon power) pickup is scaled by this; 0.2 = 5x rarer.

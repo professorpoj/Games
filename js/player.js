@@ -204,14 +204,20 @@ export class Player {
     const lasing = input.fire && this.entry <= 0 && this.laserChains().length > 0;
     this.laser = lasing ? Math.min(1, this.laser + dt / OVERDRIVE.laserRamp) : Math.max(0, this.laser - dt / 0.1);
 
+    // Wingmen save their bombs for crowds: they launch them automatically (no FIRE
+    // needed) while more than WINGMAN.bombCrowd enemies are on screen, aimed at the
+    // densest cluster ahead.
+    const crowded = this.game.enemiesOnScreen > WINGMAN.bombCrowd;
     for (const w of this.wings) {
       if (w.level <= WINGMAN.maxRounds) continue;
       w.bombCd -= dt;
-      if (input.fire && w.bombCd <= 0) {
-        this.game.firePlayer(w.x + 10, w.y, WINGMAN.bombSpeed, 0, WINGMAN.bombDamage, 'wbomb');
+      if (crowded && w.bombCd <= 0) {
+        const t = this.game.bombTarget(w.x, w.y);
+        const ang = t ? clamp(Math.atan2(t.y - w.y, t.x - w.x), -0.6, 0.6) : 0;
+        this.game.firePlayer(w.x + 10, w.y, Math.cos(ang) * WINGMAN.bombSpeed, Math.sin(ang) * WINGMAN.bombSpeed, WINGMAN.bombDamage, 'wbomb');
         this.game.sfx.play('wingBomb');
         w.bombCd = this.wingBombInterval(w);
-      } else if (!input.fire && w.bombCd < 0) w.bombCd = 0;
+      } else if (!crowded && w.bombCd < 0) w.bombCd = 0;
     }
   }
 

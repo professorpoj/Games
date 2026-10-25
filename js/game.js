@@ -74,6 +74,7 @@ export class Game {
     this.difficulty = { fire: 1, speed: 1, hp: 1 };
     this.maxDashers = 2;
     this.dashers = 0;
+    this.enemiesOnScreen = 0;
     this.director = new Director(this);
     this.swarms = [];
     this.enemies = [];
@@ -525,7 +526,34 @@ export class Game {
     if (Math.random() < 0.3) P.add('glow', x, y, 0, 0, 0.08, 14, NEON);
   }
 
+  /** Hostiles currently inside the viewport (air enemies, vehicles, the mothership). */
+  countEnemiesOnScreen() {
+    let n = 0;
+    for (const e of this.enemies) if (!e.dead && e.x > 0 && e.x < this.W && e.y > 0 && e.y < this.H) n++;
+    for (const v of this.vehicles) if (!v.dead && v.right > 0 && v.left < this.W) n++;
+    if (this.mothership && this.mothership.state === 'fight') n++;
+    return n;
+  }
+
+  /** Point to lob a wingman bomb at: the on-screen enemy ahead with the most neighbours. */
+  bombTarget(x, y) {
+    const R2 = WINGMAN.bombRadius * WINGMAN.bombRadius * 1.4;
+    let best = null, bestScore = -1;
+    for (const e of this.enemies) {
+      if (e.dead || e.x < x + 30 || e.x > this.W || e.y < 0 || e.y > this.H) continue;
+      let score = 0;
+      for (const o of this.enemies) if (!o.dead && (o.x - e.x) ** 2 + (o.y - e.y) ** 2 < R2) score++;
+      score -= Math.hypot(e.x - x, e.y - y) / 2000; // tie-break: nearer is better
+      if (score > bestScore) {
+        bestScore = score;
+        best = e;
+      }
+    }
+    return best;
+  }
+
   updateEnemies(dt) {
+    this.enemiesOnScreen = this.countEnemiesOnScreen();
     let dashers = 0;
     for (const e of this.enemies) if (e.type === 'darter' && (e.state === 'dash' || e.state === 'windup')) dashers++;
     this.dashers = dashers;

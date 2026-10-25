@@ -46,7 +46,7 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
   - After all 7 chains are neon, P is worth 1,000 points. The HUD pips show each chain's tier (blue / red / pink). Overdrive is kept when you lose a ship.
 - **Wingmen** from rare green **W** pickups (Bulwarks drop one half the time). There are two wingmen, top and bottom, and each has its own level:
   - Levels 1–3: 1, 2 or 3 rounds per shot
-  - Level 4: launches bombs (splash damage that also clears nearby bullets)
+  - Level 4: carries bombs (splash damage that also clears nearby bullets). Wingmen **launch them automatically whenever more than 7 enemies are on screen**, aimed at the densest cluster ahead, and hold them otherwise.
   - Levels 5–7: bombs fire faster
 
   Each W goes to the weaker wingman, so a lost wingman is rebuilt first until it matches the other. When they're equal, upgrades alternate between them (top, bottom, top...). Once both are at level 7, each W is worth 2,000 points. The HUD shows their levels as `W top/bottom`.

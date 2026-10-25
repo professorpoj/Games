@@ -58,6 +58,7 @@ export const WINGMAN = {
   bombIntervalMax: 1.5,  // seconds between bombs at level 4
   bombIntervalMin: 0.6,  // at level 7
   dropMul: 0.25,         // W drop chance = enemy drop chance x this
+  bombCrowd: 7,          // wingmen launch their bombs while MORE than this many enemies are on screen
 };
 
 // Tap SHIELD to raise a bubble that destroys enemy bullets touching it.

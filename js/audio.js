@@ -163,6 +163,10 @@ export class Sfx {
       case 'specialCharge':
         if (this.throttle(name, 0.12)) this.tone('triangle', 300, 1200, 0.5, 0.04);
         break;
+      case 'playerMissile':
+        this.noise(0.25, 0.1, 3000, 600);
+        this.tone('triangle', 300, 900, 0.22, 0.05);
+        break;
       case 'extra':
         [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.1, i * 0.09));
         break;

@@ -28,6 +28,7 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 | Left half: floating joystick (or touch-drag mode) | WASD / arrows | Move in any direction |
 | **FIRE** (hold) | Space / J / Z | Shoot |
 | **SHIELD** (tap on / tap off) | V / E | Bubble that destroys enemy bullets touching it. Lasts 4 s on a full meter, recharges 5x slower (20 s) |
+| **MISSILE** (appears once you have an H; hold to keep firing) | M / Q | Fires a salvo of homing missiles, one per H level, each chasing one of the nearest enemies. Reloads in 1.6 s |
 | **BOMB** | B / L / C | Shockwave that damages every enemy ship on screen (doesn't touch bullets) |
 | Pause button | P / Esc | Pause |
 
@@ -46,6 +47,7 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
   - **Red** (P #8–14): **1.5×**.
   - **Hot neon pink laser** (P #15–16, the 4th tier): the two inner straight chains become continuous lasers (at most **2 lasers**). Each ramps to full power in 0.15 s when you press FIRE and stays on while you hold it, steadily melting everything in its path (enemies, vehicles, the mothership, shootable missiles) at **2×** the chain's damage rate, with molten sparks and embers where it cuts.
   - That's the upgrade cap: after it, P is worth 1,000 points. The HUD pips show each chain's tier (blue / orange / red / pink).
+- **Homing missiles** from the **extremely rare orange H** pickup: exactly **one H drops each time you drive off the mothership**, and nothing else drops it. The first H adds the MISSILE button (above SHIELD) firing 1 missile per salvo; each further H adds one more, up to **5 per salvo**. Missiles launch in a fan, accelerate, and home in on the nearest enemies (air units, ground vehicles or the mothership), switching to a new target if theirs is destroyed. After 5, an H is worth 5,000 points. The HUD shows `H#`.
 - **Wingmen** from rare green **W** pickups (Bulwarks drop one half the time). There are two wingmen, top and bottom, and each has its own level:
   - Levels 1–3: 1, 2, then 3 beams, **green** at 0.5× damage
   - Level 4: all beams turn **blue** (0.8×, matching your ship's blue)

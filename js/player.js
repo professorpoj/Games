@@ -1,4 +1,4 @@
-import { PLAYER, CONTROLS, GROUND_H, WINGMAN, SHIELD, OVERDRIVE } from './config.js';
+import { PLAYER, CONTROLS, GROUND_H, WINGMAN, SHIELD, OVERDRIVE, HOMING } from './config.js';
 import { clamp, damp } from './utils.js';
 
 // Beam chains per power level: [x offset, y offset, angle, damage per bolt].
@@ -22,7 +22,9 @@ export class Player {
     this.vx = this.vy = 0;
     this.alive = false;
     this.power = 1;
-    this.overdrive = 0;   // P levels past max power: 1-7 orange, 8-14 red, 15-16 neon lasers
+    this.overdrive = 0;
+    this.homing = 0;      // missiles per salvo (0 = no launcher yet)
+    this.missileCd = 0;   // P levels past max power: 1-7 orange, 8-14 red, 15-16 neon lasers
     this.laser = 0;       // neon laser output, ramps 0..1 while FIRE is held
     this.tilt = 0;
     this.invuln = 0;
@@ -266,6 +268,13 @@ export class Player {
     // needed) while more than WINGMAN.bombCrowd enemies are on screen, aimed at the
     // densest cluster ahead.
     const crowded = this.game.enemiesOnScreen > WINGMAN.bombCrowd;
+    // Homing missile salvo (hold MISSILE to keep firing as it reloads).
+    this.missileCd = Math.max(0, this.missileCd - dt);
+    if (input.missile && this.homing > 0 && this.missileCd <= 0 && this.entry <= 0) {
+      this.game.fireHomingSalvo(this.x + 6, this.y, this.homing);
+      this.missileCd = HOMING.cooldown;
+    }
+
     for (const w of this.wings) {
       if (w.level < WINGMAN.bombLevel) continue;
       w.bombCd -= dt;

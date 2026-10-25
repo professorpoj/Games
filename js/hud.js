@@ -1,4 +1,4 @@
-import { CONTROLS, PLAYER, SHIELD, OVERDRIVE } from './config.js';
+import { CONTROLS, PLAYER, SHIELD, OVERDRIVE, HOMING } from './config.js';
 import { TAU, hexToRgba } from './utils.js';
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
@@ -65,6 +65,10 @@ export function drawHud(ctx, g) {
     // Top / bottom wingman levels ("-" = slot empty).
     ctx.font = `800 11px ${SANS}`;
     shadowText(ctx, `W ${wt.level || '-'}/${wb.level || '-'}`, L + PLAYER.maxPower * 11 + 6, T + 51, '#5dff7a');
+  }
+  if (g.player.homing > 0) {
+    ctx.font = `800 11px ${SANS}`;
+    shadowText(ctx, `H${g.player.homing}`, L + PLAYER.maxPower * 11 + 62, T + 51, '#ff7b3a');
   }
 
   // Shield meter.
@@ -161,6 +165,20 @@ function drawShieldButton(ctx, b, p) {
   ctx.globalAlpha = base;
 }
 
+function drawMissileButton(ctx, b, p) {
+  const ready = p.missileCd <= 0;
+  const base = ctx.globalAlpha;
+  ctx.globalAlpha = base * (ready ? 1 : 0.55);
+  drawButton(ctx, b, `x${p.homing}`);
+  // Reload ring.
+  ctx.strokeStyle = b.color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, b.r + 5, -Math.PI / 2, -Math.PI / 2 + (1 - p.missileCd / HOMING.cooldown) * TAU);
+  ctx.stroke();
+  ctx.globalAlpha = base;
+}
+
 export function drawControls(ctx, g) {
   const input = g.input;
   const b = input.btn;
@@ -235,6 +253,7 @@ export function drawControls(ctx, g) {
 
   drawButton(ctx, b.fire, g.settings.autoFire ? 'AUTO' : '');
   drawShieldButton(ctx, b.shield, g.player);
+  if (g.player.homing > 0) drawMissileButton(ctx, b.missile, g.player);
   ctx.globalAlpha *= g.bombs > 0 ? 1 : 0.4;
   drawButton(ctx, b.bomb, `x${g.bombs}`);
   ctx.globalAlpha = 1;

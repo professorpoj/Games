@@ -76,6 +76,8 @@ export class Mothership {
     g.maybeDropP(this.x - M.rx, this.y - 30);
     g.spawnPowerup('B', this.x - M.rx, this.y + 30);
     g.spawnPowerup('W', this.x - M.rx - 30, this.y);
+    // The only source of H (homing missiles): exactly one per mothership driven off.
+    g.spawnPowerup('H', this.x - M.rx - 10, this.y - 60);
     if (this.visit >= 2) g.spawnPowerup('W', this.x - M.rx - 60, this.y + 50);
   }
 

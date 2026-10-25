@@ -1,6 +1,6 @@
 import {
   VIEW_H, MIN_ASPECT, MAX_ASPECT, MAX_DPR, SCROLL_SPEED, PLAYER,
-  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE, P_DROP_RATE,
+  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE, P_DROP_RATE, HOMING, MOTHERSHIP,
 } from './config.js';
 import { Pool, compact, clamp, rand, damp, segDist2, TAU } from './utils.js';
 import { Input } from './input.js';
@@ -17,8 +17,8 @@ import { Sfx } from './audio.js';
 import { drawHud, drawControls } from './hud.js';
 
 const BULLET_R = { orb: 5, big: 8, needle: 3.5, missile: 6 };
-const POWERUP_COLOR = { P: '#ffd23f', B: '#ff5fd2', W: '#5dff7a' };
-const PLAYER_SHOT_R = { shot: 5, orange: 5, red: 5, wing: 4, wblue: 4, worange: 4, wred: 4, wbomb: 7 };
+const POWERUP_COLOR = { P: '#ffd23f', B: '#ff5fd2', W: '#5dff7a', H: '#ff7b3a' };
+const PLAYER_SHOT_R = { shot: 5, orange: 5, red: 5, wing: 4, wblue: 4, worange: 4, wred: 4, wbomb: 7, pmissile: 5 };
 const WING_BOLT_COLOR = { wing: '#5dff7a', wblue: '#4cc9f0', worange: '#ff9a2e', wred: '#ff3b3b' };
 const NEON = '#ff3ec8';
 const STORE = 'swarmbreaker.v1';
@@ -185,6 +185,8 @@ export class Game {
     this.player.overdrive = 0;
     this.player.laser = 0;
     this.player.clearWings();
+    this.player.homing = 0;
+    this.player.missileCd = 0;
     this.player.shield = 1;
     this.player.shieldOn = false;
     this.director.reset(demo);
@@ -466,6 +468,76 @@ export class Game {
     }
   }
 
+  // ---------------------------------------------------------------- homing missiles
+
+  /** On-screen targets (enemies, vehicle parts, the mothership), nearest first. */
+  targetsByDistance(x, y) {
+    const list = [];
+    const add = (t, tx, ty) => list.push({ ...t, d: (tx - x) ** 2 + (ty - y) ** 2 });
+    for (const e of this.enemies) if (!e.dead && e.x > 0 && e.x < this.W + 10 && e.y > 0 && e.y < this.H) add({ type: 'e', ref: e }, e.x, e.y);
+    for (const v of this.vehicles) {
+      if (v.dead || v.dying) continue;
+      for (const part of v.parts) if (part.alive && part.ch.x > 0 && part.ch.x < this.W) add({ type: 'v', ref: part, v }, part.ch.x, part.ch.y);
+    }
+    const ms = this.mothership;
+    if (ms && ms.state === 'fight') add({ type: 'm', ref: ms }, ms.x - MOTHERSHIP.rx * 0.5, ms.y);
+    return list.sort((a, b) => a.d - b.d);
+  }
+
+  targetPos(t) {
+    if (!t) return null;
+    if (t.type === 'e') return t.ref.dead ? null : t.ref;
+    if (t.type === 'v') return t.v.dead || t.v.dying || !t.ref.alive ? null : { x: t.ref.ch.x, y: t.ref.ch.y - t.ref.top / 2 };
+    const ms = t.ref;
+    return ms === this.mothership && ms.state === 'fight' ? { x: ms.x - MOTHERSHIP.rx * 0.5, y: ms.y } : null;
+  }
+
+  /** A fanned salvo; each missile takes one of the nearest targets. */
+  fireHomingSalvo(x, y, n) {
+    const targets = this.targetsByDistance(x, y);
+    for (let i = 0; i < n; i++) {
+      const a = (i - (n - 1) / 2) * 0.5;
+      const b = this.firePlayer(x, y + (i - (n - 1) / 2) * 6, Math.cos(a) * 260, Math.sin(a) * 260, HOMING.damage, 'pmissile');
+      b.tgt = targets.length ? targets[i % targets.length] : null;
+      b.t = 0;
+      b.life = HOMING.life;
+      b.ang = a;
+    }
+    this.particles.add('glow', x, y, 0, 0, 0.1, 14, '#ffb03b');
+    this.sfx.play('playerMissile');
+  }
+
+  steerMissile(b, dt) {
+    b.t += dt;
+    let pos = this.targetPos(b.tgt);
+    if (!pos) {
+      // Target gone: lock onto whatever is now nearest.
+      b.tgt = this.targetsByDistance(b.x, b.y)[0] || null;
+      pos = this.targetPos(b.tgt);
+    }
+    if (pos && b.t > 0.12) {
+      const want = Math.atan2(pos.y - b.y, pos.x - b.x);
+      let d = want - b.ang;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      b.ang += clamp(d, -HOMING.turn * dt, HOMING.turn * dt);
+    }
+    const sp = Math.min(HOMING.speed, 260 + b.t * 900);
+    b.vx = Math.cos(b.ang) * sp;
+    b.vy = Math.sin(b.ang) * sp;
+    if (Math.random() < 0.7) this.particles.add('glow', b.x - b.vx * 0.02, b.y - b.vy * 0.02, 0, 0, 0.18, 5, '#ffb03b');
+    if (Math.random() < 0.35) this.particles.smoke(b.x, b.y, rand(-10, 10), rand(-10, 10), 2, 0.6, '#c9c2d6');
+    if ((b.life -= dt) <= 0) {
+      b.dead = true;
+      this.particles.explosion(b.x, b.y, '#ffb03b', 0.4);
+    }
+  }
+
+  missileBurst(b) {
+    if (b.kind !== 'pmissile') return;
+    this.particles.explosion(b.x, b.y, '#ffb03b', 0.7);
+    this.particles.ring(b.x, b.y, '#ffd27a', 4, 26, 0.25, 3);
+  }
+
   /** Neon laser chains: continuous damage to everything along each beam. */
   updateLasers(dt) {
     const p = this.player;
@@ -582,6 +654,7 @@ export class Game {
     for (const b of this.pBullets.list) {
       b.px = b.x;
       b.py = b.y;
+      if (b.kind === 'pmissile') this.steerMissile(b, dt);
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       if (b.x > W + 30 || b.y < -30 || b.y > H + 30) b.dead = true;
@@ -651,7 +724,15 @@ export class Game {
     const p = this.player;
     this.sfx.play('power');
     this.particles.ring(u.x, u.y, POWERUP_COLOR[u.kind], 6, 36, 0.3, 3);
-    if (u.kind === 'P') {
+    if (u.kind === 'H') {
+      if (p.homing < HOMING.max) {
+        p.homing++;
+        this.particles.text(p.x, p.y - 26, p.homing === 1 ? 'HOMING MISSILES!' : `HOMING MISSILES x${p.homing}`, POWERUP_COLOR.H, 15);
+      } else {
+        this.score += HOMING.bonus;
+        this.particles.text(p.x, p.y - 26, `+${HOMING.bonus}`, POWERUP_COLOR.H, 14);
+      }
+    } else if (u.kind === 'P') {
       if (p.power < PLAYER.maxPower) {
         p.power++;
         this.particles.text(p.x, p.y - 26, p.power === PLAYER.maxPower ? 'MAX POWER' : 'POWER UP', '#ffd23f', 14);
@@ -824,7 +905,10 @@ export class Game {
       if (ms && ms.state !== 'retreat' && ms.hits(b.x, b.y, b.r)) {
         b.dead = true;
         if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
-        else ms.damage(b.dmg, b.x, b.y);
+        else {
+          ms.damage(b.dmg, b.x, b.y);
+          this.missileBurst(b);
+        }
         continue;
       }
       for (const v of this.vehicles) {
@@ -832,7 +916,10 @@ export class Game {
         if (!part) continue;
         b.dead = true;
         if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
-        else v.damage(part, b.dmg, b.x, b.y);
+        else {
+          v.damage(part, b.dmg, b.x, b.y);
+          this.missileBurst(b);
+        }
         break;
       }
       if (b.dead) continue;
@@ -842,7 +929,10 @@ export class Game {
         if (dx * dx + dy * dy < rr * rr) {
           b.dead = true;
           if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
-          else this.damageEnemy(e, b.dmg, b.x, b.y);
+          else {
+            this.damageEnemy(e, b.dmg, b.x, b.y);
+            this.missileBurst(b);
+          }
           break;
         }
       }
@@ -953,6 +1043,26 @@ export class Game {
     const orangeBolt = this.sprites.glow('#ff9a2e', 5);
     for (const b of this.pBullets.list) {
       const x = L(b.px, b.x), y = L(b.py, b.y);
+      if (b.kind === 'pmissile') {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(b.ang);
+        const fl = 8 + Math.random() * 6;
+        ctx.drawImage(this.sprites.glow('#ffb03b', 4), -8 - fl, -4, fl + 4, 8);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = '#eaf6ff';
+        ctx.fillRect(-7, -2, 12, 4);
+        ctx.fillStyle = '#ff7b3a';
+        ctx.beginPath();
+        ctx.moveTo(5, -2);
+        ctx.lineTo(9, 0);
+        ctx.lineTo(5, 2);
+        ctx.fill();
+        ctx.fillStyle = '#9aa3b8';
+        ctx.fillRect(-7, -4, 3, 8);
+        ctx.restore();
+        continue;
+      }
       if (b.kind === 'wbomb') {
         const s = 22 + Math.sin(t * 30) * 4;
         ctx.drawImage(this.sprites.glow('#5dff7a', 7), x - s / 2, y - s / 2, s, s);

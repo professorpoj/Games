@@ -116,6 +116,19 @@ export const VEHICLES = {
   unlock: { truck: 2, tank: 4, train: 6 },  // first wave each type appears (guaranteed)
 };
 
+// Homing missiles from the very rare orange "H" pickup (one per mothership
+// defeated). Each H adds a missile to the salvo, up to 5. Fired with the
+// MISSILE button; each missile chases the nearest enemy.
+export const HOMING = {
+  max: 5,
+  cooldown: 1.6,         // seconds between salvos
+  damage: 5,
+  speed: 620,            // top speed (they launch slower and accelerate)
+  turn: 7,               // turn rate, radians/s
+  life: 4,
+  bonus: 5000,           // points for an H once maxed
+};
+
 export const CONTROLS = {
   stickRadius: 62,       // logical units the knob can travel
   deadZone: 0.08,

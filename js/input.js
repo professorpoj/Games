@@ -11,6 +11,7 @@ const KEYS = {
   fire: ['Space', 'KeyJ', 'KeyZ'],
   bomb: ['KeyB', 'KeyL', 'KeyC'],
   shield: ['KeyV', 'KeyE'],
+  missile: ['KeyM', 'KeyQ'],
   pause: ['Escape', 'KeyP'],
 };
 const GAME_KEYS = new Set(Object.values(KEYS).flat());
@@ -31,6 +32,7 @@ export class Input {
       fire: { x: 0, y: 0, r: 60, label: 'FIRE', color: '#4cc9f0', down: false },
       bomb: { x: 0, y: 0, r: 40, label: 'BOMB', color: '#ff5fd2', down: false },
       shield: { x: 0, y: 0, r: 40, label: 'SHIELD', color: '#7df9ff', down: false },
+      missile: { x: 0, y: 0, r: 36, label: 'MISSILE', color: '#ff7b3a', down: false },
       pause: { x: 0, y: 0, r: 22, label: 'II', color: '#ffffff', down: false },
     };
     this.leftZone = 0;
@@ -73,6 +75,7 @@ export class Input {
     // Packed into the bottom corners: FIRE in the corner, SHIELD to its left, BOMB above.
     Object.assign(b.fire, { x: R - 70, y: B - 70 });
     Object.assign(b.shield, { x: R - 180, y: B - 52 });
+    Object.assign(b.missile, { x: R - 180, y: B - 146 });
     Object.assign(b.bomb, { x: R - 52, y: B - 178 });
     Object.assign(b.pause, { x: R - 36, y: insets.t + 34 });
     this.stick.homeX = insets.l + 86;
@@ -149,7 +152,8 @@ export class Input {
   pressTarget(p) {
     if (this.inFireCorner(p)) return 'fire';
     let best = null, bestD = Infinity;
-    for (const [name, slack] of [['fire', 1.3], ['shield', 1.25], ['bomb', 1.25]]) {
+    for (const [name, slack] of [['fire', 1.3], ['shield', 1.25], ['bomb', 1.25], ['missile', 1.2]]) {
+      if (name === 'missile' && !this.game.player.homing) continue; // hidden until the first H
       const btn = this.btn[name];
       const d = Math.hypot(p.x - btn.x, p.y - btn.y) / btn.r;
       if (d <= slack && d < bestD) {
@@ -195,7 +199,7 @@ export class Input {
       this.dragDX += p.x - rec.x;
       this.dragDY += p.y - rec.y;
       this.dragPos = p;
-    } else if (rec.kind === 'button' && rec.button !== 'bomb' && rec.button !== 'shield') {
+    } else if (rec.kind === 'button' && rec.button === 'fire' || (rec.kind === 'button' && !rec.button)) {
       const cur = rec.button && this.btn[rec.button];
       if (!cur || !hit(cur, p, 1.45)) rec.button = this.rollTarget(p);
     }
@@ -218,7 +222,7 @@ export class Input {
   poll() {
     const k = this.keys, any = (list) => list.some((c) => k.has(c));
     const b = this.btn;
-    b.fire.down = b.bomb.down = b.shield.down = false;
+    b.fire.down = b.bomb.down = b.shield.down = b.missile.down = false;
     for (const rec of this.pointers.values()) if (rec.button) b[rec.button].down = true;
 
     const s = this.stick;
@@ -248,6 +252,7 @@ export class Input {
     }
     this.dragActive = this.dragId !== null;
     this.fire = b.fire.down || any(KEYS.fire) || this.game.settings.autoFire;
+    this.missile = b.missile.down || any(KEYS.missile);
   }
 
   consumeBomb() {

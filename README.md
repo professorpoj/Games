@@ -75,9 +75,27 @@ The shield stops all of this ordnance (shells fizzle on the bubble), and the bom
 
 **Testing tip:** add `?wave=N` to the URL to start a game at wave N, for example `.../Games/?wave=6` to meet the train right away.
 
-### Landscape colour cycle
+### Landscape stages
 
-Every 5 waves the whole landscape (sky, planet, mountains, mesas, crystals, ground, floating spores) turns **one step around the 12-colour wheel (30°)**, crossfading over about 2.5 seconds as the next wave starts. Waves 1–5 use the original purple dusk, waves 6–10 shift 30°, waves 11–15 shift 60°, and so on, coming back around after wave 60. Ships, bullets and the HUD keep their colours so they stay readable.
+Every 5 waves the landscape changes as the next wave starts, crossfading over about 2.5 seconds:
+
+- **Colour:** the sky, planet, mountains, mesas, ground and floating spores turn **one step around the 12-colour wheel (30°)**. Waves 1–5 use the original purple dusk, waves 6–10 shift 30°, and so on, coming back around after wave 60.
+- **Decor:** the props on the near background layer switch theme. They keep their own colours so they stay recognisable on any palette:
+
+| Waves | Decor |
+|---|---|
+| 1–5 | Glowing crystals |
+| 6–10 | Alien plants with glowing seed bulbs |
+| 11–15 | Alien egg clutches, some hatched |
+| 16–20 | Toxic waste drums and glowing puddles |
+| 21–25 | Defunct missiles stuck in the ground |
+| 26–30 | Air fleet control towers with radar and hangars |
+| 31–35 | City metropolis: mixed towers with lit windows |
+| 36–40 | Palm trees |
+| 41–45 | Nuclear reactors: cooling towers venting steam, reactor domes |
+| 46+ | The cycle repeats |
+
+Ships, enemies, bullets and the HUD keep their colours. The decor themes live in `js/decor.js`.
 
 ### Mothership (boss)
 
@@ -126,7 +144,8 @@ js/director.js        wave building, difficulty ramp, mothership visits
 js/mothership.js      the boss: laser, hangar swarms, abilities per visit
 js/vehicles.js        ground vehicles: suspension physics, driving AI, placeholder art
 js/projectiles.js     mortar / tank shell / wave-missile ordnance, blasts and warning markers
-js/background.js      procedural tiling parallax layers
+js/background.js      procedural tiling parallax layers, palette stages
+js/decor.js           background decor themes (one per 5-wave stage)
 js/particles.js, js/sprites.js, js/hud.js, js/audio.js
 ```
 

@@ -3,6 +3,7 @@
 // then scrolled at its own speed factor every frame.
 import { mulberry32, TAU, shiftHue } from './utils.js';
 import { GROUND_H } from './config.js';
+import { DECORS } from './decor.js';
 
 const TILE = 1400;
 const GROUND_AMP = 7;
@@ -39,7 +40,7 @@ function layerCanvas(w, h, scale) {
   c.height = Math.max(1, Math.round(h * scale));
   const g = c.getContext('2d');
   g.setTransform(c.width / w, 0, 0, c.height / h, 0, 0);
-  return { c, g: hueContext(g) };
+  return { c, g: hueContext(g), raw: g };
 }
 
 /** Sum of sines with integer frequencies => exactly periodic over TILE. Range ~[-1, 1]. */
@@ -90,6 +91,7 @@ export class Background {
     this.sky = null;
     this.motes = [];
     this.hue = 0;
+    this.decor = 0;   // index into DECORS for the near layer's props
     this.prev = null; // previous palette, kept while crossfading
     this.fade = 1;
   }
@@ -101,15 +103,17 @@ export class Background {
   }
 
   /**
-   * Rotate the whole palette to a new hue (one step on the 12-colour wheel = 30°),
-   * crossfading from the old colours over a couple of seconds.
+   * Stage n (every 5 waves): palette turns n steps around the 12-colour wheel
+   * (30° each) and the near-layer decor switches to theme n, crossfading over
+   * a couple of seconds.
    */
-  setHue(deg, fade = true) {
-    deg = ((deg % 360) + 360) % 360;
-    if (deg === this.hue) return;
+  setStage(n, fade = true) {
+    const hue = (((n * 30) % 360) + 360) % 360, decor = n % DECORS.length;
+    if (hue === this.hue && decor === this.decor) return;
     this.prev = fade && this.sky ? { sky: this.sky, layers: this.layers } : null;
     this.fade = this.prev ? 0 : 1;
-    this.hue = deg;
+    this.hue = hue;
+    this.decor = decor;
     if (this.W) this.rebuild(this.W, this.H, this.scale);
   }
 
@@ -305,7 +309,7 @@ export class Background {
     const profile = [];
     for (let x = 0; x <= TILE; x += 6) profile.push([x, base + hill(x) * 16]);
     const top = base - 150;
-    const { c, g } = layerCanvas(TILE, H - top, scale);
+    const { c, g, raw } = layerCanvas(TILE, H - top, scale);
     const yAt = (x) => base + hill(((x % TILE) + TILE) % TILE) * 16 - top;
 
     // Rock spires (tapered, slightly bent).
@@ -328,42 +332,19 @@ export class Background {
     grd.addColorStop(1, '#13071b');
     fillProfile(g, profile, top, H, grd);
 
-    // Glowing crystal clusters.
-    for (let i = 0; i < 9; i++) {
-      const x = rng() * TILE, n = 3 + Math.floor(rng() * 3), size = 0.7 + rng() * 0.8;
-      const hue = rng() < 0.7 ? ['#3ff3d0', '#1aa892'] : ['#ff5fd2', '#a8318a'];
-      const shards = [];
-      for (let k = 0; k < n; k++) shards.push({ dx: (rng() - 0.5) * 22 * size, h: (14 + rng() * 26) * size, w: (4 + rng() * 4) * size, a: (rng() - 0.5) * 0.9 });
-      wrapDraw(x, 40, (cx) => {
-        const y0 = yAt(cx) + 3;
-        const glow = g.createRadialGradient(cx, y0 - 10, 0, cx, y0 - 10, 40 * size);
-        glow.addColorStop(0, hue[0] + '55');
-        glow.addColorStop(1, hue[0] + '00');
-        g.fillStyle = glow;
-        g.fillRect(cx - 40 * size, y0 - 50 * size, 80 * size, 80 * size);
-        for (const s of shards) {
-          g.save();
-          g.translate(cx + s.dx, y0);
-          g.rotate(s.a);
-          g.beginPath();
-          g.moveTo(-s.w, 0);
-          g.lineTo(-s.w, -s.h * 0.75);
-          g.lineTo(0, -s.h);
-          g.lineTo(s.w, -s.h * 0.75);
-          g.lineTo(s.w, 0);
-          g.closePath();
-          g.fillStyle = hue[1];
-          g.fill();
-          g.beginPath();
-          g.moveTo(0, 0);
-          g.lineTo(0, -s.h);
-          g.lineTo(s.w, -s.h * 0.75);
-          g.lineTo(s.w, 0);
-          g.closePath();
-          g.fillStyle = hue[0];
-          g.fill();
-          g.restore();
-        }
+    // Themed props (crystals, alien plants, eggs, drums...). They keep their own
+    // colours (drawn without the palette hue shift) so they stay recognisable, and
+    // use their own random stream so the terrain shape never changes with the theme.
+    const decor = DECORS[this.decor], k = decor.scale || 1;
+    const drng = mulberry32(this.seed + 7919 * (this.decor + 1));
+    for (let i = 0; i < decor.count; i++) {
+      const x = drng() * TILE, p = decor.make(drng);
+      wrapDraw(x, decor.halfWidth * k, (cx) => {
+        raw.save();
+        raw.translate(cx, yAt(cx) + 3);
+        raw.scale(k, k);
+        decor.draw(raw, 0, 0, p);
+        raw.restore();
       });
     }
     strokeProfile(g, profile, top, 'rgba(255,120,170,0.25)', 1.5);

@@ -39,7 +39,7 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 
 - **Fixed 120 Hz simulation with render interpolation.** Movement and collisions behave the same on 60, 90 and 120 Hz screens.
 - **Precise ship.** It speeds up and slows down quickly, stops at the screen edges without bouncing, and has a tiny 4-unit hitbox. Fast bullets use swept collision so they can't pass through you between frames.
-- **Weapon power 1–4** from **P** pickups. **B** pickups add bombs. Weapon power is kept when you lose a ship.
+- **Weapon power 1–4** from **P** pickups, which are deliberately rare (every P drop chance is scaled by `P_DROP_RATE` in `js/config.js`, currently 0.2). **B** pickups add bombs. Weapon power is kept when you lose a ship.
 - **Overdrive** (P pickups after max power): at max power your gun fires 7 beam chains. Each extra **P** upgrades one chain, starting with the centre and working outward top/bottom:
   - **Red** (P #1–7 past max): that chain fires red bolts doing **2×** the blue damage.
   - **Hot neon pink laser** (P #8–14): that chain becomes a continuous laser. It ramps to full power in 0.15 s when you press FIRE and stays on while you hold it, steadily melting everything in its path (enemies, vehicles, the mothership, shootable missiles) at **3×** the blue chain's damage rate, with molten sparks and embers where it cuts.

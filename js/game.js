@@ -1,6 +1,6 @@
 import {
   VIEW_H, MIN_ASPECT, MAX_ASPECT, MAX_DPR, SCROLL_SPEED, PLAYER,
-  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE,
+  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE, P_DROP_RATE,
 } from './config.js';
 import { Pool, compact, clamp, rand, damp, segDist2, TAU } from './utils.js';
 import { Input } from './input.js';
@@ -228,12 +228,12 @@ export class Game {
     this.sfx.play('bigExplode');
     if (!v) return;
     if (v.kind === 'tank') {
-      this.spawnPowerup('P', x, y - 20);
+      this.maybeDropP(x, y - 20);
       if (Math.random() < 0.4) this.spawnPowerup('W', x + 20, y - 40);
     } else if (v.kind === 'train') {
       this.spawnPowerup('W', x, y - 30);
-      this.spawnPowerup('P', x - 30, y - 20);
-    } else if (Math.random() < 0.35) this.spawnPowerup('P', x, y - 20);
+      this.maybeDropP(x - 30, y - 20);
+    } else this.maybeDropP(x, y - 20, 0.35);
   }
 
   startMothership(visit) {
@@ -281,6 +281,11 @@ export class Game {
     return b;
   }
 
+  /** Roll for a P pickup: `chance` is scaled by P_DROP_RATE so P stays rare. */
+  maybeDropP(x, y, chance = 1) {
+    if (Math.random() < chance * P_DROP_RATE) this.spawnPowerup('P', x, y);
+  }
+
   spawnPowerup(kind, x, y) {
     const u = this.powerups.spawn();
     u.kind = kind;
@@ -323,10 +328,13 @@ export class Game {
     this.shake = Math.max(this.shake, big ? 12 : 2.5);
     if (this.player.alive) this.addScore(e.def.score * (e.enhanced ? ENHANCED_SCORE : 1), e.x, e.y);
     if (big) {
-      this.spawnPowerup('P', e.x, e.y);
+      this.maybeDropP(e.x, e.y);
       if (Math.random() < 0.4) this.spawnPowerup('B', e.x, e.y + 20);
-    } else if (Math.random() < e.def.drop * (e.enhanced ? 2 : 1)) {
-      this.spawnPowerup(Math.random() < 0.72 ? 'P' : 'B', e.x, e.y);
+    } else {
+      // P and B roll separately so only P gets rarer (B keeps its old rate).
+      const drop = e.def.drop * (e.enhanced ? 2 : 1);
+      this.maybeDropP(e.x, e.y, drop * 0.72);
+      if (Math.random() < drop * 0.28) this.spawnPowerup('B', e.x, e.y);
     }
     // Rare wingman pickup (flagships drop one half the time).
     if (Math.random() < (big ? 0.5 : e.def.drop * WINGMAN.dropMul)) this.spawnPowerup('W', e.x, e.y - 20);
@@ -335,7 +343,7 @@ export class Game {
       const bonus = e.swarm.total * 100;
       this.score += bonus;
       this.particles.text(e.x, e.y - 34, `SWARM WIPED +${bonus}`, '#7dffcf', 15);
-      if (Math.random() < 0.5) this.spawnPowerup('P', e.x, e.y);
+      this.maybeDropP(e.x, e.y, 0.5);
     }
   }
 

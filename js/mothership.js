@@ -73,7 +73,7 @@ export class Mothership {
     g.shake = 16;
     g.flash = 0.3;
     for (let i = 0; i < 6; i++) g.particles.explosion(this.x + rand(-M.rx, M.rx) * 0.7, this.y + rand(-M.ry, M.ry) * 0.7, '#b46bff', 1.6);
-    g.spawnPowerup('P', this.x - M.rx, this.y - 30);
+    g.maybeDropP(this.x - M.rx, this.y - 30);
     g.spawnPowerup('B', this.x - M.rx, this.y + 30);
     g.spawnPowerup('W', this.x - M.rx - 30, this.y);
     if (this.visit >= 2) g.spawnPowerup('W', this.x - M.rx - 60, this.y + 50);

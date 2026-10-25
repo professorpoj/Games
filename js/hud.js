@@ -83,6 +83,18 @@ export function drawHud(ctx, g) {
   ctx.font = `600 11px ${MONO}`;
   shadowText(ctx, `HI ${String(Math.max(g.hiScore, g.score)).padStart(7, '0')}`, W / 2, T + 20, 'rgba(255,255,255,0.6)');
 
+  // Mothership hull meter.
+  const ms = g.mothership;
+  if (ms && ms.state !== 'retreat') {
+    const bw = Math.min(320, W * 0.32), bx0 = W / 2 - bw / 2, by = T + 38;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(bx0 - 2, by - 2, bw + 4, 10);
+    ctx.fillStyle = ms.flash > 0 ? '#ffffff' : '#b46bff';
+    ctx.fillRect(bx0, by, (bw * ms.hp) / ms.maxHp, 6);
+    ctx.font = `800 10px ${SANS}`;
+    shadowText(ctx, `MOTHERSHIP MK ${ms.visit}`, W / 2, by + 10, '#d8c8ff');
+  }
+
   // Center banner.
   const bn = g.banner;
   if (bn) {

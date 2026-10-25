@@ -60,6 +60,23 @@ export const SHIELD = {
   wingRadius: 16,        // smaller bubble around each wingman while the shield is up
 };
 
+// Boss that shows up after every 5th wave. It can't be destroyed: deplete its
+// hull meter and it retreats, returning 5 waves later tougher with new tricks.
+export const MOTHERSHIP = {
+  baseHp: 260,
+  hpPerVisit: 0.6,       // +60% hull per return visit
+  rx: 150,               // hull half-width / half-height (elliptical hitbox)
+  ry: 92,
+  trackSpeed: 95,        // how fast it slides vertically to line up the laser
+  laserCharge: 1.7,      // seconds of warm-up (telegraphed)
+  laserLock: 0.45,       // the aim freezes this long before firing
+  laserFire: 1.0,        // beam duration
+  laserHalfWidth: 16,
+  laserCooldown: [2.6, 3.6],
+  swarmInterval: [7, 9.5],
+  retreatBonus: 5000,    // x visit number
+};
+
 export const CONTROLS = {
   stickRadius: 62,       // logical units the knob can travel
   deadZone: 0.08,

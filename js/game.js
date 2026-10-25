@@ -9,6 +9,7 @@ import { Background } from './background.js';
 import { Particles } from './particles.js';
 import { Sprites } from './sprites.js';
 import { Director } from './director.js';
+import { Mothership } from './mothership.js';
 import { updateEnemy, drawEnemy, drawTelegraph } from './enemies.js';
 import { Sfx } from './audio.js';
 import { drawHud, drawControls } from './hud.js';
@@ -68,6 +69,7 @@ export class Game {
     this.timeScale = 1;
     this.banner = null;
     this.bomb = null;
+    this.mothership = null;
     this.debug = /[?&]debug/.test(location.search);
     this.fps = 60;
     this.onStateChange = null;
@@ -151,6 +153,7 @@ export class Game {
     this.nextLife = EXTRA_LIFE_EVERY;
     this.banner = null;
     this.bomb = null;
+    this.mothership = null;
     this.gameOverTimer = 0;
     this.timeScale = 1;
     this.player.power = 1;
@@ -186,6 +189,12 @@ export class Game {
     if (this.score > this.hiScore) this.hiScore = this.score;
     this.persist();
     this.setState('gameover');
+  }
+
+  startMothership(visit) {
+    this.mothership = new Mothership(this, visit);
+    this.showBanner('WARNING', visit === 1 ? 'MOTHERSHIP APPROACHING' : `MOTHERSHIP RETURNS · MK ${visit}`);
+    this.sfx.play('alarm');
   }
 
   showBanner(text, sub = '') {
@@ -359,6 +368,10 @@ export class Game {
     this.updatePlayer(dt);
     this.director.update(dt);
     for (const s of this.swarms) s.update(dt);
+    if (this.mothership) {
+      this.mothership.update(dt);
+      if (this.mothership.done) this.mothership = null;
+    }
     this.updateEnemies(dt);
     this.updateBullets(dt);
     this.updatePowerups(dt);
@@ -521,6 +534,11 @@ export class Game {
         this.damageEnemy(e, 14, e.x, e.y);
       }
     }
+    const ms = this.mothership;
+    if (ms && !bm.hitBoss && Math.hypot(ms.x - bm.x, ms.y - bm.y) - 110 < bm.r) {
+      bm.hitBoss = true;
+      ms.damage(20, ms.x - 100, ms.y);
+    }
     if (bm.t >= bm.dur) this.bomb = null;
   }
 
@@ -536,6 +554,7 @@ export class Game {
       const dx = e.x - x, dy = e.y - y, rr = R + e.r;
       if (dx * dx + dy * dy < rr * rr) this.damageEnemy(e, WINGMAN.bombDamage, e.x, e.y);
     }
+    if (this.mothership?.hits(x, y, R)) this.mothership.damage(WINGMAN.bombDamage, x, y);
     for (const b of this.eBullets.list) {
       const dx = b.x - x, dy = b.y - y;
       if (dx * dx + dy * dy < R2) {
@@ -609,9 +628,15 @@ export class Game {
   }
 
   collide() {
-    const p = this.player, W = this.W;
+    const p = this.player, W = this.W, ms = this.mothership;
     for (const b of this.pBullets.list) {
       if (b.dead) continue;
+      if (ms && ms.state !== 'retreat' && ms.hits(b.x, b.y, b.r)) {
+        b.dead = true;
+        if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
+        else ms.damage(b.dmg, b.x, b.y);
+        continue;
+      }
       for (const e of this.enemies) {
         if (e.dead || e.x > W + e.r) continue;
         const dx = b.x - e.x, dy = b.y - e.y, rr = e.r + b.r;
@@ -647,8 +672,15 @@ export class Game {
 
     if (p.alive && p.shieldOn) this.shieldBlock();
     if (p.alive && p.invuln <= 0 && p.entry <= 0) this.collideWingmen();
+    if (ms && ms.state !== 'retreat') {
+      for (const w of p.wings) if (w.level && w.invuln <= 0 && ms.hits(w.x, w.y, WINGMAN.hitRadius, 0.9)) this.wingmanDown(w);
+    }
     if (!p.alive || p.invuln > 0 || p.entry > 0) return;
     const hr = PLAYER.hitRadius;
+    if (ms && ms.state !== 'retreat' && ms.hits(p.x, p.y, hr, 0.9)) {
+      this.killPlayer();
+      return;
+    }
     for (const b of this.eBullets.list) {
       if (b.dead) continue;
       const rr = hr + b.r * 0.8;
@@ -690,6 +722,8 @@ export class Game {
 
     this.bg.render(ctx, L(this.prevScroll, this.scroll));
 
+    const ms = this.mothership;
+    if (ms) ms.draw(ctx, L(ms.px, ms.x), L(ms.py, ms.y), t);
     for (const e of this.enemies) drawTelegraph(ctx, e, L(e.px, e.x), L(e.py, e.y), t);
 
     for (const u of this.powerups.list) this.drawPowerup(ctx, u, L(u.px, u.x), L(u.py, u.y), t);
@@ -735,6 +769,7 @@ export class Game {
     if (p.alive && p.shieldOn) this.drawShield(ctx, L, t);
     this.drawEnemyBullets(ctx, L);
     this.particles.render(ctx, this.sprites);
+    if (ms) ms.drawLaser(ctx, t);
 
     if (this.bomb) {
       const bm = this.bomb, k = bm.t / bm.dur;

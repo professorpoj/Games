@@ -61,6 +61,25 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 | Seeker | cyan diamond with an eye | 5 | Aims a laser sight at you, locks on (turns red), then fires a 3-needle burst |
 | Bulwark | large purple octagon | 32 | Flagship: alternates 5-way spread volleys with homing missiles you can shoot down |
 
+### Mothership (boss)
+
+After every 5th wave a warning sounds and the **mothership** moves in on the right side of the screen. Its main weapon is a **big laser**:
+
+1. **Heat-up:** the emitter on its nose glows from red to white, a dashed red line and a shaded danger band show exactly where the beam will go, and the ship slides up or down to line up with you.
+2. **Lock:** about half a second before firing, the aim freezes and the line flashes white and red. That's your cue to move out of the band.
+3. **Fire:** a thick beam crosses the whole screen for a second. **The shield doesn't stop it**, so you have to dodge. It also destroys wingmen and kills you if you touch the hull.
+
+It also launches small swarms from its hangar. Shoot the hull enough (its meter is at the top of the screen) and it **retreats** for a big bonus and drops pickups. It isn't destroyed. It comes back after the next 5 waves with more hull and new abilities:
+
+| Visit | Adds |
+|---|---|
+| Mk 1 (after wave 5) | Heat-up laser, hangar swarms of Stingers |
+| Mk 2 (after wave 10) | Side turrets firing aimed spreads; Darters join the swarms |
+| Mk 3 (after wave 15) | Some laser shots sweep across the screen; Whirlers and Seekers join the swarms |
+| Mk 4+ | Fires the laser twice in a row; homing missile salvos |
+
+Its laser also charges faster on every visit. Tuning is under `MOTHERSHIP` in `js/config.js`.
+
 ### Swarms
 
 Each swarm follows a moving anchor point. It either flies straight across the screen, weaves up and down, or flies in, holds position, then leaves. Members switch between two behaviors:
@@ -85,7 +104,8 @@ js/player.js          ship movement, weapons, placeholder ship drawing
 js/enemies.js         enemy stats, attacks, placeholder drawing, attack warnings
 js/swarm.js           flocking and formation steering, slot assignment
 js/formations.js      geometric formation shapes
-js/director.js        wave building and difficulty ramp
+js/director.js        wave building, difficulty ramp, mothership visits
+js/mothership.js      the boss: laser, hangar swarms, abilities per visit
 js/background.js      procedural tiling parallax layers
 js/particles.js, js/sprites.js, js/hud.js, js/audio.js
 ```

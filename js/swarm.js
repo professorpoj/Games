@@ -19,7 +19,8 @@ export class Swarm {
     this.shape = null;
     this.time = 0;
     this.baseY = spec.y;
-    this.anchor = { x: W + 160, y: spec.y, vx: -spec.speed, vy: 0 };
+    const origin = spec.origin || { x: W + 160, y: spec.y };
+    this.anchor = { x: origin.x, y: origin.y, vx: -spec.speed, vy: 0 };
     this.holdX = W * rand(0.6, 0.74);
     this.holdTime = spec.holdTime;
     this.stageTimer = 0;
@@ -48,7 +49,9 @@ export class Swarm {
     this.spacing = Math.max(30, maxR * 2.5);
 
     for (const t of spec.members) {
-      const e = new Enemy(t, W + rand(30, 230), spec.y + rand(-80, 80), this, game.difficulty);
+      const e = spec.origin
+        ? new Enemy(t, origin.x + rand(-20, 40), origin.y + rand(-25, 25), this, game.difficulty)
+        : new Enemy(t, W + rand(30, 230), spec.y + rand(-80, 80), this, game.difficulty);
       e.vx = -rand(170, 250);
       e.vy = rand(-40, 40);
       this.members.push(e);

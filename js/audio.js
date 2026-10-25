@@ -111,6 +111,16 @@ export class Sfx {
       case 'deflect':
         if (this.throttle(name, 0.05)) this.tone('triangle', 1500, 1100, 0.04, 0.03);
         break;
+      case 'laserCharge':
+        this.tone('sawtooth', 90, 900, 1.5, 0.05);
+        break;
+      case 'laserFire':
+        this.noise(1.0, 0.3, 3500, 300);
+        this.tone('sawtooth', 140, 60, 1.0, 0.12);
+        break;
+      case 'alarm':
+        [0, 0.35, 0.7].forEach((d) => this.tone('square', 660, 440, 0.25, 0.06, d));
+        break;
       case 'extra':
         [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.1, i * 0.09));
         break;

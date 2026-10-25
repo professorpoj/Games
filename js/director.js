@@ -46,6 +46,7 @@ export class Director {
   reset(demo) {
     this.demo = demo;
     this.wave = 0;
+    this.visits = 0;
     this.queue = [];
     this.phase = 'break';
     this.timer = demo ? 0.3 : 1.6;
@@ -105,6 +106,22 @@ export class Director {
       if (this.timer <= 0) this.startWave();
       return;
     }
+    if (this.phase === 'bossWarn') {
+      this.timer -= dt;
+      if (this.timer <= 0) {
+        this.phase = 'boss';
+        g.startMothership(++this.visits);
+      }
+      return;
+    }
+    if (this.phase === 'boss') {
+      // Next wave starts once the mothership has been driven off.
+      if (!g.mothership) {
+        this.phase = 'break';
+        this.timer = 3;
+      }
+      return;
+    }
     if (this.queue.length) {
       const next = this.queue[0];
       // Keep the action flowing: don't leave the screen empty for long.
@@ -121,6 +138,11 @@ export class Director {
         const bonus = 500 * this.wave;
         g.score += bonus;
         g.showBanner(`WAVE ${this.wave} CLEAR`, `BONUS +${bonus}`);
+      }
+      if (!this.demo && this.wave % 5 === 0) {
+        // Every 5 waves the mothership comes calling.
+        this.phase = 'bossWarn';
+        this.timer = 3;
       }
     }
   }

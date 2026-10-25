@@ -301,8 +301,10 @@ export class Game {
       /* unsupported */
     }
     this.lives--;
-    p.power = Math.max(1, p.power - 1);
-    p.wingLevel = Math.max(0, p.wingLevel - WINGMAN.deathPenalty);
+    // Losing a ship wipes out the wingmen (rebuild them with W pickups);
+    // the ship's own weapon power is kept.
+    for (let i = 0; i < p.wingCount; i++) this.particles.explosion(p.wings[i].x, p.wings[i].y, '#5dff7a', 0.8);
+    p.wingLevel = 0;
     this.chain = 0;
     if (this.lives <= 0) this.gameOverTimer = 2;
   }

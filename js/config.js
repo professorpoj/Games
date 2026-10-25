@@ -43,7 +43,6 @@ export const WINGMAN = {
   bombSpeed: 520,
   bombIntervalMax: 1.5,  // seconds between bombs at the first bomb levels
   bombIntervalMin: 0.6,  // at max level
-  deathPenalty: 2,       // W levels lost when your ship is destroyed
   dropMul: 0.25,         // W drop chance = enemy drop chance x this
 };
 

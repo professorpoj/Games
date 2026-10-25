@@ -181,15 +181,24 @@ class Vehicle {
     this.x += (this.u - SCROLL_SPEED) * dt;
   }
 
-  /** Aggressive target: chase an offset from the player while not overlapping other vehicles. */
-  target(offset) {
-    const g = this.game, p = g.player;
+  /**
+   * Station in the right half of the screen, independent of the player: each
+   * vehicle picks its own spot there and drifts around it, without overlapping
+   * other vehicles.
+   */
+  target(wanderAmp, wanderFreq) {
+    const g = this.game;
     if (this.age > this.cfg.life || this.retreating) {
       this.retreating = true;
       return -3000;
     }
-    let tx = p.alive ? p.x + offset : g.W * 0.35;
-    tx = clamp(tx, this.backLen - 40, g.W - this.frontLen - 12);
+    if (this.station === undefined) {
+      this.station = rand(0.6, 0.82);
+      this.wanderPhase = rand(TAU);
+    }
+    const lo = g.W * 0.5 + this.backLen, hi = g.W - this.frontLen - 12;
+    let tx = g.W * this.station + Math.sin(this.age * wanderFreq + this.wanderPhase) * g.W * wanderAmp;
+    tx = lo < hi ? clamp(tx, lo, hi) : (lo + hi) / 2;
     for (const o of g.vehicles) {
       if (o === this || o.dead) continue;
       const myL = tx - this.backLen - 30, myR = tx + this.frontLen + 30;
@@ -197,7 +206,7 @@ class Vehicle {
         tx = this.x < o.x ? o.left - this.frontLen - 30 : o.right + this.backLen + 30;
       }
     }
-    return tx;
+    return clamp(tx, this.backLen - 40, g.W - this.frontLen - 12);
   }
 
   canFire(x) {
@@ -337,8 +346,8 @@ export class Truck extends Vehicle {
   update(dt) {
     const g = this.game, p = g.player;
     this.updateCommon(dt);
-    // Weaves aggressively around a spot just behind the player.
-    const tx = this.target(-90 + Math.sin(this.age * 1.3 + this.weave) * 70);
+    // Lively weaving around its station in the right half.
+    const tx = this.target(0.1, 0.55) + Math.sin(this.age * 1.3 + this.weave) * 30;
     this.drive(dt, tx, this.drive_);
     this.ch.moveTo(this.x);
     this.ch.step(dt, this.groundFn(), this.accel, this.u);
@@ -449,9 +458,8 @@ export class Tank extends Vehicle {
   update(dt) {
     const g = this.game, p = g.player;
     this.updateCommon(dt);
-    // Sits well behind or ahead of the player and lobs from long range.
-    const behind = p.x - 240;
-    const tx = this.target(behind > 80 ? -240 : 240);
+    // Holds a slow-drifting firing position and shells from long range.
+    const tx = this.target(0.05, 0.25);
     this.drive(dt, tx, this.drive_);
     this.ch.moveTo(this.x);
     this.ch.step(dt, this.groundFn(), this.accel, this.u);
@@ -625,9 +633,7 @@ export class Train extends Vehicle {
   update(dt) {
     const g = this.game, ground = this.groundFn();
     this.updateCommon(dt);
-    const span = this.backLen + this.frontLen;
-    // Keep the launcher cars spread out underneath the player.
-    const tx = this.dying ? -3000 : this.target(span / 2 - LOCO_HALF);
+    const tx = this.dying ? -3000 : this.target(0.04, 0.2);
     this.drive(dt, tx, this.drive_);
     const loco = this.cars[0];
     loco.v = this.u - SCROLL_SPEED;

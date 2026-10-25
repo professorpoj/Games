@@ -12,6 +12,7 @@ const CHAINS = {
 };
 
 const BOLT_KIND = ['shot', 'orange', 'red'];
+const WING_KIND = ['wing', 'wblue', 'worange', 'wred'];
 
 export class Player {
   constructor(game) {
@@ -139,8 +140,48 @@ export class Player {
     return w;
   }
 
+  /** Wingman beam layout for its level: [y offset, angle] per beam. */
+  wingBeams(w) {
+    const n = Math.min(w.level, WINGMAN.maxRounds);
+    if (n === 1) return [[0, 0]];
+    if (n === 2) return [[-4, 0], [4, 0]];
+    return [[0, -0.09], [0, 0], [0, 0.09]];
+  }
+
+  /** 0 green, 1 blue, 2 orange, 3 red, 4 neon laser. */
+  wingBeamTier(w, i) {
+    const lvl = w.level, R = WINGMAN.maxRounds;
+    if (lvl <= R) return 0;
+    const lasers = clamp(lvl - (R + 7), 0, WINGMAN.laserBeams.length);
+    const li = WINGMAN.laserBeams.indexOf(i);
+    if (li >= 0 && li < lasers) return 4;
+    const pos = WINGMAN.beamOrder.indexOf(i);
+    if (pos < clamp(lvl - (R + 4), 0, R)) return 3;
+    if (pos < clamp(lvl - (R + 1), 0, R)) return 2;
+    return 1;
+  }
+
+  /**
+   * Every neon laser currently firing: the ship's laser chains plus wingman lasers.
+   * alpha < 1 interpolates positions for rendering. Returns [x, y, angle, dmg, width].
+   */
+  laserSources(alpha = 1) {
+    const out = [];
+    const L = (a, b) => a + (b - a) * alpha;
+    const px = L(this.px, this.x), py = L(this.py, this.y);
+    for (const [ox, oy, ang, dmg] of this.laserChains()) out.push([px + ox, py + oy, ang, dmg * OVERDRIVE.laserMul, 1]);
+    for (const w of this.wings) {
+      if (w.level < WINGMAN.bombLevel - 2) continue;
+      const wx = L(w.px, w.x), wy = L(w.py, w.y);
+      this.wingBeams(w).forEach(([dy, ang], i) => {
+        if (this.wingBeamTier(w, i) === 4) out.push([wx + 12, wy + dy, ang, WINGMAN.bulletDamage * WINGMAN.laserMul, 0.6]);
+      });
+    }
+    return out;
+  }
+
   wingBombInterval(w) {
-    const t = clamp((w.level - WINGMAN.maxRounds - 1) / (WINGMAN.maxLevel - WINGMAN.maxRounds - 1), 0, 1);
+    const t = clamp((w.level - WINGMAN.bombLevel) / (WINGMAN.maxLevel - WINGMAN.bombLevel), 0, 1);
     return WINGMAN.bombIntervalMax + (WINGMAN.bombIntervalMin - WINGMAN.bombIntervalMax) * t;
   }
 
@@ -218,7 +259,7 @@ export class Player {
     } else if (this.fireCd < 0) this.fireCd = 0;
 
     // Neon laser snaps to full power while FIRE is held, then cuts out on release.
-    const lasing = input.fire && this.entry <= 0 && this.laserChains().length > 0;
+    const lasing = input.fire && this.entry <= 0 && this.laserSources().length > 0;
     this.laser = lasing ? Math.min(1, this.laser + dt / OVERDRIVE.laserRamp) : Math.max(0, this.laser - dt / 0.1);
 
     // Wingmen save their bombs for crowds: they launch them automatically (no FIRE
@@ -226,7 +267,7 @@ export class Player {
     // densest cluster ahead.
     const crowded = this.game.enemiesOnScreen > WINGMAN.bombCrowd;
     for (const w of this.wings) {
-      if (w.level <= WINGMAN.maxRounds) continue;
+      if (w.level < WINGMAN.bombLevel) continue;
       w.bombCd -= dt;
       if (crowded && w.bombCd <= 0) {
         const t = this.game.bombTarget(w.x, w.y);
@@ -239,17 +280,14 @@ export class Player {
   }
 
   shootWings() {
-    const g = this.game, S = PLAYER.bulletSpeed, dmg = WINGMAN.bulletDamage;
+    const g = this.game, S = PLAYER.bulletSpeed;
     for (const w of this.wings) {
       if (!w.level) continue;
-      const n = Math.min(w.level, WINGMAN.maxRounds), x = w.x + 12;
-      if (n === 1) g.firePlayer(x, w.y, S, 0, dmg, 'wing');
-      else if (n === 2) {
-        g.firePlayer(x, w.y - 4, S, 0, dmg, 'wing');
-        g.firePlayer(x, w.y + 4, S, 0, dmg, 'wing');
-      } else {
-        for (const a of [-0.09, 0, 0.09]) g.firePlayer(x, w.y, Math.cos(a) * S, Math.sin(a) * S, dmg, 'wing');
-      }
+      this.wingBeams(w).forEach(([dy, ang], i) => {
+        const tier = this.wingBeamTier(w, i);
+        if (tier === 4) return; // continuous laser
+        g.firePlayer(w.x + 12, w.y + dy, Math.cos(ang) * S, Math.sin(ang) * S, WINGMAN.bulletDamage * WINGMAN.mul[tier], WING_KIND[tier]);
+      });
     }
   }
 

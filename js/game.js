@@ -18,7 +18,8 @@ import { drawHud, drawControls } from './hud.js';
 
 const BULLET_R = { orb: 5, big: 8, needle: 3.5, missile: 6 };
 const POWERUP_COLOR = { P: '#ffd23f', B: '#ff5fd2', W: '#5dff7a' };
-const PLAYER_SHOT_R = { shot: 5, orange: 5, red: 5, wing: 4, wbomb: 7 };
+const PLAYER_SHOT_R = { shot: 5, orange: 5, red: 5, wing: 4, wblue: 4, worange: 4, wred: 4, wbomb: 7 };
+const WING_BOLT_COLOR = { wing: '#5dff7a', wblue: '#4cc9f0', worange: '#ff9a2e', wred: '#ff3b3b' };
 const NEON = '#ff3ec8';
 const STORE = 'swarmbreaker.v1';
 
@@ -470,11 +471,11 @@ export class Game {
     const p = this.player;
     this.sfx.setLaser(p.alive && this.state === 'playing' ? p.laser : 0);
     if (!p.alive || p.laser <= 0) return;
-    const hw = OVERDRIVE.laserHalfWidth;
-    for (const [ox, oy, ang, dmg] of p.laserChains()) {
-      const x0 = p.x + ox, y0 = p.y + oy, dx = Math.cos(ang), dy = Math.sin(ang);
+    for (const [x0, y0, ang, dmg, width] of p.laserSources()) {
+      const hw = OVERDRIVE.laserHalfWidth * width;
+      const dx = Math.cos(ang), dy = Math.sin(ang);
       const x1 = x0 + dx * 1600, y1 = y0 + dy * 1600;
-      const burn = dmg * OVERDRIVE.laserMul * (1 / PLAYER.fireInterval) * p.laser * dt;
+      const burn = dmg * (1 / PLAYER.fireInterval) * p.laser * dt;
       const contact = (x, y) => {
         const t = Math.max(0, (x - x0) * dx + (y - y0) * dy);
         return [x0 + dx * t, y0 + dy * t];
@@ -669,11 +670,15 @@ export class Game {
     } else if (u.kind === 'W') {
       const w = p.addWingLevel();
       if (w) {
-        const side = w.side < 0 ? 'TOP' : 'BOTTOM', lvl = w.level, R = WINGMAN.maxRounds;
+        const side = w.side < 0 ? 'TOP' : 'BOTTOM', lvl = w.level, R = WINGMAN.maxRounds, B = WINGMAN.bombLevel;
         let msg;
         if (lvl === 1) msg = `${side} WINGMAN!`;
-        else if (lvl <= R) msg = `${side} WINGMAN x${lvl} SHOT`;
-        else if (lvl === R + 1) msg = `${side} WINGMAN BOMBS!`;
+        else if (lvl <= R) msg = `${side} WINGMAN x${lvl} BEAMS`;
+        else if (lvl === R + 1) msg = `${side} WINGMAN BLUE BEAMS`;
+        else if (lvl <= R + 4) msg = `${side} WINGMAN ORANGE ${lvl - R - 1}/3`;
+        else if (lvl <= R + 7) msg = `${side} WINGMAN RED ${lvl - R - 4}/3`;
+        else if (lvl < B) msg = `${side} WINGMAN LASER ${lvl - R - 7}/2`;
+        else if (lvl === B) msg = `${side} WINGMAN BOMBS!`;
         else msg = lvl === WINGMAN.maxLevel ? `${side} BOMBS MAX` : `${side} BOMB RATE UP`;
         this.particles.text(p.x, p.y - 26, msg, '#5dff7a', 14);
       } else {
@@ -944,7 +949,6 @@ export class Game {
 
     ctx.globalCompositeOperation = 'lighter';
     const bolt = this.sprites.glow('#4cc9f0', 5);
-    const wingBolt = this.sprites.glow('#5dff7a', 4);
     const redBolt = this.sprites.glow('#ff3b3b', 5);
     const orangeBolt = this.sprites.glow('#ff9a2e', 5);
     for (const b of this.pBullets.list) {
@@ -954,8 +958,9 @@ export class Game {
         ctx.drawImage(this.sprites.glow('#5dff7a', 7), x - s / 2, y - s / 2, s, s);
         continue;
       }
-      const img = b.kind === 'wing' ? wingBolt : b.kind === 'red' ? redBolt : b.kind === 'orange' ? orangeBolt : bolt;
-      const w = b.kind === 'wing' ? 24 : 32, h = b.kind === 'wing' ? 9 : 12;
+      const wingCol = WING_BOLT_COLOR[b.kind];
+      const img = wingCol ? this.sprites.glow(wingCol, 4) : b.kind === 'red' ? redBolt : b.kind === 'orange' ? orangeBolt : bolt;
+      const w = wingCol ? 24 : 32, h = wingCol ? 9 : 12;
       if (b.vy === 0) ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
       else {
         ctx.save();
@@ -966,7 +971,7 @@ export class Game {
       }
     }
     const p = this.player;
-    if (p.alive && p.laser > 0) this.drawLasers(ctx, L(p.px, p.x), L(p.py, p.y), t);
+    if (p.alive && p.laser > 0) this.drawLasers(ctx, alpha, t);
     ctx.globalCompositeOperation = 'source-over';
 
     if (p.alive) drawPlayer(ctx, L(p.px, p.x), L(p.py, p.y), p, t, alpha);
@@ -1003,12 +1008,12 @@ export class Game {
     }
   }
 
-  drawLasers(ctx, px, py, t) {
+  drawLasers(ctx, alpha, t) {
     const p = this.player, k = p.laser;
     ctx.lineCap = 'round';
-    for (const [ox, oy, ang] of p.laserChains()) {
-      const x0 = px + ox, y0 = py + oy, x1 = x0 + Math.cos(ang) * 1600, y1 = y0 + Math.sin(ang) * 1600;
-      const w = (4 + Math.sin(t * 70 + ox) * 0.8) * (0.4 + 0.6 * k);
+    for (const [x0, y0, ang, , width] of p.laserSources(alpha)) {
+      const x1 = x0 + Math.cos(ang) * 1600, y1 = y0 + Math.sin(ang) * 1600;
+      const w = (4 + Math.sin(t * 70 + y0) * 0.8) * (0.4 + 0.6 * k) * width;
       for (const [width, color] of [[w * 4.5, 'rgba(255,62,200,0.22)'], [w * 2.2, 'rgba(255,62,200,0.75)'], [w * 0.8, '#ffe3f6']]) {
         ctx.strokeStyle = color;
         ctx.lineWidth = width;
@@ -1017,7 +1022,7 @@ export class Game {
         ctx.lineTo(x1, y1);
         ctx.stroke();
       }
-      const s = 16 + 10 * k;
+      const s = (16 + 10 * k) * width;
       ctx.drawImage(this.sprites.glow(NEON, s / 2), x0 - s, y0 - s, s * 2, s * 2);
     }
   }

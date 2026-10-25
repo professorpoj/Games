@@ -43,23 +43,33 @@ export const OVERDRIVE = {
 };
 
 // Wingmen from rare green "W" pickups. Each wingman has its own level:
-// 1-3 = rounds per shot, 4 = launches bombs, 5-7 = faster bombs.
+// 1-3   = 1, 2, 3 beams (green, 0.5x)
+// 4     = all beams blue (0.8x, matching the ship's blue)
+// 5-7   = beams turn orange (1x) one at a time
+// 8-10  = beams turn red (1.5x) one at a time
+// 11-12 = two beams become neon lasers (2x, continuous)
+// 13    = bombs; 14-16 = faster bombs. After that Ws give points.
 // A W always upgrades the weaker wingman (rebuilding a lost one first);
 // when they're equal, upgrades alternate between them.
 export const WINGMAN = {
-  maxRounds: 3,          // levels 1-3: rounds per shot
-  maxLevel: 7,           // per wingman; once both are maxed, Ws give points
+  maxRounds: 3,          // levels 1-3: beams per shot
+  mul: [0.5, 0.8, 1, 1.5], // beam damage by tier: green, blue, orange, red (x the ship's original blue)
+  laserMul: 2,           // wingman neon laser: 2x the beam's damage rate, continuous
+  beamOrder: [1, 0, 2],  // colour upgrade order: centre beam, then top, then bottom
+  laserBeams: [0, 2],    // the two outer beams become lasers
+  bombLevel: 13,         // bombs unlock after both lasers
+  maxLevel: 16,          // per wingman; once both are maxed, Ws give points
   hitRadius: 5,          // wingmen can be shot down or rammed, like your ship
   spawnInvuln: 1.5,      // brief protection when a wingman (re)joins
   offsetX: -14,
   offsetY: 36,
   follow: 16,            // how tightly they trail the ship (higher = stiffer)
-  bulletDamage: 0.7,
+  bulletDamage: 1,       // base beam damage (before the tier multiplier)
   bombDamage: 3,
   bombRadius: 60,
   bombSpeed: 520,
-  bombIntervalMax: 1.5,  // seconds between bombs at level 4
-  bombIntervalMin: 0.6,  // at level 7
+  bombIntervalMax: 1.5,  // seconds between bombs at the bomb level
+  bombIntervalMin: 0.6,  // at max level
   dropMul: 0.25,         // W drop chance = enemy drop chance x this
   bombCrowd: 7,          // wingmen launch their bombs while MORE than this many enemies are on screen
 };

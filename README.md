@@ -47,11 +47,14 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
   - **Hot neon pink laser** (P #15–16, the 4th tier): the two inner straight chains become continuous lasers (at most **2 lasers**). Each ramps to full power in 0.15 s when you press FIRE and stays on while you hold it, steadily melting everything in its path (enemies, vehicles, the mothership, shootable missiles) at **2×** the chain's damage rate, with molten sparks and embers where it cuts.
   - That's the upgrade cap: after it, P is worth 1,000 points. The HUD pips show each chain's tier (blue / orange / red / pink).
 - **Wingmen** from rare green **W** pickups (Bulwarks drop one half the time). There are two wingmen, top and bottom, and each has its own level:
-  - Levels 1–3: 1, 2 or 3 rounds per shot
-  - Level 4: carries bombs (splash damage that also clears nearby bullets). Wingmen **launch them automatically whenever more than 7 enemies are on screen**, aimed at the densest cluster ahead, and hold them otherwise.
-  - Levels 5–7: bombs fire faster
+  - Levels 1–3: 1, 2, then 3 beams, **green** at 0.5× damage
+  - Level 4: all beams turn **blue** (0.8×, matching your ship's blue)
+  - Levels 5–7: beams turn **orange** (1×) one at a time (centre, top, bottom)
+  - Levels 8–10: beams turn **red** (1.5×) one at a time
+  - Levels 11–12: the two outer beams become **neon lasers** (2×, continuous while you hold FIRE), so two lasers per wingman
+  - Level 13: **bombs** (splash damage that also clears nearby bullets), launched automatically whenever more than 7 enemies are on screen, aimed at the densest cluster ahead. Levels 14–16: faster bombs.
 
-  Each W goes to the weaker wingman, so a lost wingman is rebuilt first until it matches the other. When they're equal, upgrades alternate between them (top, bottom, top...). Once both are at level 7, each W is worth 2,000 points. The HUD shows their levels as `W top/bottom`.
+  Each W goes to the weaker wingman, so a lost wingman is rebuilt first until it matches the other. When they're equal, upgrades alternate between them (top, bottom, top...). Once both are at level 16, each W is worth 2,000 points. The HUD shows their levels as `W top/bottom`.
 
   Wingmen die like your ship does: one enemy bullet or collision. When one goes down the other keeps flying, and a newly joined wingman gets 1.5 s of protection. The shield gives each wingman its own small bubble. Losing your ship destroys both wingmen. Tuning is under `WINGMAN` in `js/config.js`.
 - **Chain multiplier** for quick kills in a row, a bonus for wiping out a whole swarm, a bonus for clearing a wave, and an extra ship every 75,000 points.

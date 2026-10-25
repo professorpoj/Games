@@ -412,4 +412,146 @@ export const DECORS = [
       }
     },
   },
+
+  // 10. Crashed starship wrecks: broken hull sections half-buried, still smouldering.
+  {
+    name: 'starship wrecks', count: 4, halfWidth: 120,
+    make(r) {
+      return { len: 110 + r() * 60, tilt: -0.12 - r() * 0.18, broken: r() < 0.6, fire: Math.floor(r() * 1e9) };
+    },
+    draw(g, cx, y0, p) {
+      const L = p.len, H = L * 0.28;
+      g.save();
+      g.translate(cx, y0 + 6);
+      g.rotate(p.tilt);
+      // Main hull, nose buried in the ground on the left.
+      poly(g, [[-L / 2, 0], [-L / 2 + H * 0.6, -H], [L * 0.25, -H * 1.05], [L / 2, -H * 0.6], [L / 2, 0]], '#5a5f7a');
+      poly(g, [[-L * 0.1, -H], [L * 0.15, -H * 1.55], [L * 0.3, -H * 1.5], [L * 0.25, -H * 1.05]], '#4a4f66');
+      g.fillStyle = '#7fd6ff55';
+      for (let i = 0; i < 5; i++) g.fillRect(-L * 0.3 + i * L * 0.11, -H * 0.7, L * 0.05, H * 0.18);
+      g.fillStyle = '#2b2230';
+      g.fillRect(-L * 0.05, -H * 0.45, L * 0.18, H * 0.45);
+      if (p.broken) {
+        // Torn-off tail with jagged edge and exposed ribs.
+        poly(g, [[L * 0.35, 0], [L * 0.38, -H * 0.5], [L * 0.44, -H * 0.3], [L * 0.47, -H * 0.62], [L / 2, -H * 0.6], [L / 2, 0]], '#1a0e1e');
+        g.strokeStyle = '#8d8fa8';
+        g.lineWidth = 1.5;
+        for (let i = 0; i < 3; i++) {
+          g.beginPath();
+          g.moveTo(L * (0.36 + i * 0.04), 0);
+          g.lineTo(L * (0.36 + i * 0.04), -H * 0.45);
+          g.stroke();
+        }
+      }
+      // Engine pod with a dead nozzle.
+      g.fillStyle = '#3a3550';
+      g.fillRect(L * 0.18, -H * 0.3, L * 0.22, H * 0.25);
+      g.restore();
+      glow(g, cx + L * 0.2, y0 - H * 0.6, 26, '#ff9a3c');
+      const fr = mulberry32(p.fire);
+      for (let i = 0; i < 5; i++) {
+        g.globalAlpha = 0.2 - i * 0.03;
+        ellipse(g, cx + L * 0.2 + (fr() - 0.5) * 10 - i * 6, y0 - H * 0.8 - i * 12, 7 + i * 3, 5 + i * 2, '#3a2f3f');
+      }
+      g.globalAlpha = 1;
+    },
+  },
+
+  // 11. Giant fossil skeletons: arching ribcages and skulls of colossal creatures.
+  {
+    name: 'fossil skeletons', count: 4, halfWidth: 110,
+    make(r) {
+      return { len: 120 + r() * 60, ribs: 6 + Math.floor(r() * 4), skull: r() < 0.7, dir: r() < 0.5 ? -1 : 1 };
+    },
+    draw(g, cx, y0, p) {
+      const L = p.len, bone = '#d9d0b8';
+      g.strokeStyle = bone;
+      g.lineCap = 'round';
+      // Spine.
+      g.lineWidth = 4;
+      g.beginPath();
+      g.moveTo(cx - L / 2, y0 - 6);
+      g.quadraticCurveTo(cx, y0 - L * 0.42, cx + L / 2, y0 - 4);
+      g.stroke();
+      // Ribs arching down from the spine to the ground.
+      g.lineWidth = 3;
+      for (let i = 0; i < p.ribs; i++) {
+        const t = (i + 1) / (p.ribs + 1);
+        const sx = cx - L / 2 + L * t;
+        const sy = (1 - t) * (1 - t) * (y0 - 6) + 2 * (1 - t) * t * (y0 - L * 0.42) + t * t * (y0 - 4);
+        const reach = 18 + Math.sin(t * Math.PI) * 14;
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.quadraticCurveTo(sx + reach * 0.9, sy + (y0 - sy) * 0.3, sx + reach * 0.4, y0);
+        g.stroke();
+      }
+      if (p.skull) {
+        const hx = cx + p.dir * (L / 2 + 10), hy = y0 - 10;
+        ellipse(g, hx, hy, 16, 11, bone);
+        poly(g, [[hx + p.dir * 8, hy - 2], [hx + p.dir * 34, hy + 4], [hx + p.dir * 8, hy + 8]], bone);
+        ellipse(g, hx + p.dir * 2, hy - 2, 4, 4, '#1a0e1e');
+        // Horn.
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(hx - p.dir * 6, hy - 8);
+        g.quadraticCurveTo(hx - p.dir * 18, hy - 26, hx - p.dir * 8, hy - 36);
+        g.stroke();
+      }
+    },
+  },
+
+  // 12. Deep-space listening array: big radio dishes on lattice towers.
+  {
+    name: 'radio dish array', count: 5, halfWidth: 75,
+    make(r) {
+      return { size: 0.8 + r() * 0.5, ang: -0.9 - r() * 0.7, beacon: r() < 0.6 };
+    },
+    draw(g, cx, y0, p) {
+      const k = p.size, h = 60 * k;
+      // Lattice tower.
+      g.strokeStyle = '#8d8fa8';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(cx - 14 * k, y0);
+      g.lineTo(cx - 3 * k, y0 - h);
+      g.moveTo(cx + 14 * k, y0);
+      g.lineTo(cx + 3 * k, y0 - h);
+      g.stroke();
+      g.lineWidth = 1;
+      for (let i = 1; i < 5; i++) {
+        const t = i / 5, w = 14 * k - 11 * k * t, y = y0 - h * t;
+        g.beginPath();
+        g.moveTo(cx - w, y);
+        g.lineTo(cx + w - 2, y - h / 5);
+        g.moveTo(cx + w, y);
+        g.lineTo(cx - w + 2, y - h / 5);
+        g.stroke();
+      }
+      // Dish, tilted toward the sky, with a feed horn.
+      g.save();
+      g.translate(cx, y0 - h);
+      g.rotate(p.ang + Math.PI / 2);
+      g.beginPath();
+      g.ellipse(0, 0, 34 * k, 12 * k, 0, 0, Math.PI);
+      g.fillStyle = '#c9cde0';
+      g.fill();
+      g.beginPath();
+      g.ellipse(0, 0, 34 * k, 4 * k, 0, 0, TAU);
+      g.fillStyle = '#9da2b8';
+      g.fill();
+      g.strokeStyle = '#8d8fa8';
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.moveTo(-20 * k, 0);
+      g.lineTo(0, -26 * k);
+      g.lineTo(20 * k, 0);
+      g.stroke();
+      ellipse(g, 0, -26 * k, 3, 3, '#5a5f7a');
+      g.restore();
+      if (p.beacon) {
+        glow(g, cx, y0 - h - 4, 12, '#ff3b5c');
+        ellipse(g, cx, y0 - h - 4, 2, 2, '#ff3b5c');
+      }
+    },
+  },
 ];

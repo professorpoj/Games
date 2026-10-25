@@ -17,8 +17,15 @@ export const ENEMY_TYPES = {
 const SNIPER_AIM_TIME = 1.0;
 const SNIPER_LOCK_TIME = 0.28;
 
+// Enhanced ("Mk II") variants keep the normal attack but can also launch a
+// special: randomly on their own, or in a pattern ordered by their swarm.
+export const SPECIAL_COLOR = '#ffd23f';
+const SPECIAL_CHARGE = 0.55;   // telegraph time before a special fires
+const SPECIAL_CHANCE = 0.3;    // chance an attack is the special instead of the normal one
+export const ENHANCED_SCORE = 2.5;
+
 export class Enemy {
-  constructor(type, x, y, swarm, difficulty) {
+  constructor(type, x, y, swarm, difficulty, enhanced = false) {
     const def = ENEMY_TYPES[type];
     this.type = type;
     this.def = def;
@@ -44,6 +51,18 @@ export class Enemy {
     this.altFire = false;
     this.visibleTime = 0;
     this.dead = false;
+    this.enhanced = enhanced;
+    this.specialDelay = -1;   // countdown to a swarm-ordered special
+    this.specialCharge = 0;   // > 0 while telegraphing a special
+    this.spiral = 0;
+    this.spiralCd = 0;
+    this.dashes = 0;
+    this.mineCd = 0;
+    this.triple = false;
+    if (enhanced) {
+      this.r = Math.round(def.r * 1.15);
+      this.maxHp = this.hp = Math.max(this.hp + 2, Math.round(this.hp * 1.8));
+    }
   }
 
   /** States in which the swarm's flocking/formation forces drive this ship. */
@@ -64,6 +83,19 @@ export function updateEnemy(e, dt, g) {
   if (!p.alive && (e.state === 'aim' || e.state === 'burst' || e.state === 'windup')) {
     e.state = 'fly';
     e.fireCd = rand(def.fire[0], def.fire[1]);
+  }
+
+  if (e.enhanced) {
+    // Swarm-ordered special (pattern), or a random one instead of the normal attack.
+    if (e.specialDelay >= 0 && (e.specialDelay -= dt) < 0) startSpecial(e, g);
+    if (armed && e.state === 'fly' && e.fireCd <= 0 && e.specialCharge <= 0 && Math.random() < SPECIAL_CHANCE) {
+      e.fireCd = rand(def.fire[0], def.fire[1]);
+      startSpecial(e, g);
+    }
+    if (e.specialCharge > 0) {
+      if (!armed) e.specialCharge = 0;
+      else if ((e.specialCharge -= dt) <= 0) doSpecial(e, g);
+    }
   }
 
   // Default heading: follow velocity like a bird, otherwise face the player side.
@@ -98,7 +130,7 @@ export function updateEnemy(e, dt, g) {
         if (e.timer <= 0) {
           const sp = 620 * diff.speed;
           e.state = 'dash';
-          e.timer = 1.0;
+          e.timer = e.dashes ? 0.7 : 1.0;
           e.vx = Math.cos(e.aim) * sp;
           e.vy = Math.sin(e.aim) * sp;
         }
@@ -106,16 +138,39 @@ export function updateEnemy(e, dt, g) {
         e.timer -= dt;
         face = Math.atan2(e.vy, e.vx);
         if (Math.random() < 0.6) g.particles.trail(e.x, e.y, def.color);
+        if (e.dashes && (e.mineCd -= dt) <= 0) {
+          // Special: the afterburner drops a trail of hovering mines.
+          e.mineCd = 0.07;
+          const m = g.fireEnemy('orb', e.x, e.y, 0, 0, SPECIAL_COLOR);
+          if (m) m.life = 2.2;
+        }
         if (e.timer <= 0 || e.x < -60 || e.y < -60 || e.y > g.H + 60) {
-          // Hand control back to the swarm: the accel limit makes it curve home.
-          e.state = 'fly';
-          e.fireCd = rand(def.fire[0], def.fire[1]);
+          if (e.dashes > 1) {
+            // Re-aim for the second leg of the special.
+            e.dashes--;
+            e.state = 'windup';
+            e.timer = 0.3;
+          } else {
+            // Hand control back to the swarm: the accel limit makes it curve home.
+            e.dashes = 0;
+            e.state = 'fly';
+            e.fireCd = rand(def.fire[0], def.fire[1]);
+          }
         }
       }
       break;
 
     case 'spinner':
-      e.spin += dt * (e.fireCd < 0.4 ? 7 : 2.4);
+      e.spin += dt * (e.fireCd < 0.4 || e.spiral > 0 ? 7 : 2.4);
+      if (e.spiral > 0) {
+        // Special: three-armed spiral stream.
+        e.spiral -= dt;
+        if ((e.spiralCd -= dt) <= 0) {
+          e.spiralCd = 0.07;
+          for (let k = 0; k < 3; k++) g.fireEnemy('orb', e.x, e.y, e.spin + (k * TAU) / 3, 150 * diff.speed, SPECIAL_COLOR);
+        }
+        break;
+      }
       if (e.state === 'fly' && e.fireCd <= 0) {
         e.fireCd = rand(def.fire[0], def.fire[1]);
         const count = 10 + Math.min(6, Math.floor(g.director.wave / 3));
@@ -143,10 +198,14 @@ export function updateEnemy(e, dt, g) {
       } else if (e.state === 'burst') {
         e.timer -= dt;
         if (e.timer <= 0) {
-          g.fireEnemy('needle', e.x + Math.cos(e.aim) * 12, e.y + Math.sin(e.aim) * 12, e.aim, 560 * diff.speed, def.color);
+          for (const off of e.triple ? [-0.22, 0, 0.22] : [0]) {
+            const a = e.aim + off;
+            g.fireEnemy('needle', e.x + Math.cos(a) * 12, e.y + Math.sin(a) * 12, a, 560 * diff.speed, e.triple ? SPECIAL_COLOR : def.color);
+          }
           g.sfx.play('snipe');
           e.timer = 0.075;
           if (--e.burst <= 0) {
+            e.triple = false;
             e.state = 'fly';
             e.fireCd = rand(def.fire[0], def.fire[1]);
           }
@@ -179,6 +238,59 @@ export function updateEnemy(e, dt, g) {
   e.angle += angleDiff(e.angle, face) * damp(turnRate, dt);
 }
 
+function startSpecial(e, g) {
+  if (e.state !== 'fly' || e.specialCharge > 0 || e.spiral > 0) return;
+  e.specialCharge = SPECIAL_CHARGE;
+  g.sfx.play('specialCharge');
+}
+
+/** Each enhanced type's special attack. */
+function doSpecial(e, g) {
+  const p = g.player, diff = g.difficulty;
+  g.particles.add('glow', e.x, e.y, 0, 0, 0.15, e.r * 2.2, SPECIAL_COLOR);
+  switch (e.type) {
+    case 'drone': {
+      // Scatter fan: 5 fast rounds.
+      const base = angleTo(e, p);
+      for (let i = 0; i < 5; i++) g.fireEnemy('orb', e.x - 6, e.y, base + (i - 2) * 0.14, 215 * diff.speed, SPECIAL_COLOR);
+      g.sfx.play('enemyShot');
+      break;
+    }
+    case 'darter':
+      // Double afterburner dash that lays mines.
+      e.state = 'windup';
+      e.timer = 0.35;
+      e.dashes = 2;
+      e.mineCd = 0;
+      g.dashers++;
+      break;
+    case 'spinner':
+      e.spiral = 1.8;
+      e.spiralCd = 0;
+      break;
+    case 'sniper':
+      // Three laser sights in a fan, then needle bursts down all three.
+      e.state = 'aim';
+      e.timer = SNIPER_AIM_TIME;
+      e.aim = angleTo(e, p);
+      e.triple = true;
+      break;
+    case 'bulwark': {
+      // Nova: a dense ring of heavy rounds plus a missile salvo.
+      for (let i = 0; i < 20; i++) g.fireEnemy('big', e.x, e.y, (i / 20) * TAU, 140 * diff.speed, SPECIAL_COLOR);
+      for (const side of [-1, 1]) {
+        for (const k of [0, 1]) {
+          const m = g.fireEnemy('missile', e.x - 6, e.y + side * 20, Math.PI + side * (0.7 + k * 0.4), 150 * diff.speed, '#ff6ad5');
+          if (m) m.hp = 2;
+        }
+      }
+      g.sfx.play('enemyShot');
+      g.shake = Math.max(g.shake, 5);
+      break;
+    }
+  }
+}
+
 function poly(ctx, pts) {
   ctx.beginPath();
   ctx.moveTo(pts[0][0], pts[0][1]);
@@ -202,9 +314,25 @@ export function drawEnemy(ctx, e, x, y, t) {
   const col = e.flash > 0 ? '#ffffff' : def.color;
   ctx.save();
   ctx.translate(x, y);
+  if (e.enhanced) {
+    // Mk II: gold halo with rotating ticks, larger hull, gold trim.
+    ctx.strokeStyle = 'rgba(255,210,63,0.75)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, e.r + 6, 0, TAU);
+    ctx.stroke();
+    for (let i = 0; i < 3; i++) {
+      const a = t * 2 + e.seed + (i * TAU) / 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, e.r + 6, a, a + 0.5);
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+    ctx.scale(1.15, 1.15);
+  }
   ctx.fillStyle = col;
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = e.enhanced ? SPECIAL_COLOR : 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = e.enhanced ? 2 : 1.5;
   switch (def.shape) {
     case 'triangle':
       ctx.rotate(e.angle);
@@ -279,8 +407,35 @@ export function drawEnemy(ctx, e, x, y, t) {
   ctx.restore();
 }
 
+function drawSniperLine(ctx, e, x, y, t, a) {
+  const locked = e.timer < SNIPER_LOCK_TIME;
+  ctx.save();
+  ctx.strokeStyle = locked ? (Math.floor(t * 30) % 2 ? '#ffffff' : SPECIAL_COLOR) : hexToRgba(SPECIAL_COLOR, 0.15 + 0.45 * (1 - e.timer / SNIPER_AIM_TIME));
+  ctx.lineWidth = locked ? 2 : 1;
+  if (!locked) ctx.setLineDash([10, 7]);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + Math.cos(a) * 1800, y + Math.sin(a) * 1800);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** Attack telegraphs, drawn under the ships so the player can read incoming attacks. */
 export function drawTelegraph(ctx, e, x, y, t) {
+  if (e.specialCharge > 0) {
+    // Special warning: a gold ring collapsing onto the ship.
+    const k = e.specialCharge / SPECIAL_CHARGE;
+    ctx.save();
+    ctx.strokeStyle = Math.floor(t * 24) % 2 ? '#ffffff' : SPECIAL_COLOR;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(x, y, e.r + 6 + k * 26, 0, TAU);
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (e.type === 'sniper' && e.state === 'aim' && e.triple) {
+    for (const off of [-0.22, 0.22]) drawSniperLine(ctx, e, x, y, t, e.aim + off);
+  }
   if (e.type === 'sniper' && e.state === 'aim') {
     const locked = e.timer < SNIPER_LOCK_TIME;
     const len = 1800;

@@ -93,7 +93,10 @@ Every 5 waves the landscape changes as the next wave starts, crossfading over ab
 | 31–35 | City metropolis: mixed towers with lit windows |
 | 36–40 | Palm trees |
 | 41–45 | Nuclear reactors: cooling towers venting steam, reactor domes |
-| 46+ | The cycle repeats |
+| 46–50 | Crashed starship wrecks, smouldering |
+| 51–55 | Giant fossil skeletons: ribcages, spines, horned skulls |
+| 56–60 | Deep-space radio dish array |
+| 61+ | The cycle repeats (12 themes, in step with the 12 colour-wheel steps) |
 
 Ships, enemies, bullets and the HUD keep their colours. The decor themes live in `js/decor.js`.
 
@@ -115,6 +118,27 @@ It also launches small swarms from its hangar. Shoot the hull enough (its meter 
 | Mk 4+ | Fires the laser twice in a row; homing missile salvos |
 
 Its laser also charges faster on every visit. Tuning is under `MOTHERSHIP` in `js/config.js`.
+
+### Enhanced (Mk II) enemies
+
+From wave 7, some ships spawn as **enhanced Mk II** versions: a gold halo with rotating ticks, gold trim, a slightly bigger hull, about 1.8× HP and 2.5× points. The share grows from 15% at wave 7 to 60%, and from wave 8 an all-Mk II "elite squadron" can appear.
+
+Each Mk II keeps its normal attack but can also launch a **special**. A collapsing gold ring warns you about half a second before it fires, and special rounds are gold:
+
+| Type | Special |
+|---|---|
+| Stinger Mk II | Scatter fan: 5 fast rounds |
+| Darter Mk II | Double afterburner dash (re-aims between legs), laying a trail of hovering mines |
+| Whirler Mk II | Three-armed spiral stream for about 2 seconds |
+| Seeker Mk II | Three laser sights in a fan, then needle bursts down all three lines |
+| Bulwark Mk II | Nova: a ring of 20 heavy rounds plus a 4-missile salvo |
+
+Specials happen two ways:
+- **Randomly:** about 30% of a Mk II's attacks are its special instead of the normal attack.
+- **In formation patterns:** while a swarm holds a shape, it periodically orders all its Mk II ships to fire specials together. The shape decides the timing:
+  - **Burst** (circle, rings, star, sunflower): all at once.
+  - **Ripple** (wall, row, wave, grid, spiral): one after another along the shape.
+  - **Alternate** (vee, arrow, diamond, triangle, cross): every other ship, in two volleys.
 
 ### Swarms
 

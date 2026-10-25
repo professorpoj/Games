@@ -44,21 +44,24 @@ export class Swarm {
     this.escaped = 0;
     this.dead = false;
 
+    this.specialTimer = rand(4, 7);
+    const enhanceChance = spec.enhanceChance ?? game.enhanceChance ?? 0;
+    const enh = () => Math.random() < enhanceChance;
     let maxR = 0;
     for (const t of spec.members) maxR = Math.max(maxR, ENEMY_TYPES[t].r);
     this.spacing = Math.max(30, maxR * 2.5);
 
     for (const t of spec.members) {
       const e = spec.origin
-        ? new Enemy(t, origin.x + rand(-20, 40), origin.y + rand(-25, 25), this, game.difficulty)
-        : new Enemy(t, W + rand(30, 230), spec.y + rand(-80, 80), this, game.difficulty);
+        ? new Enemy(t, origin.x + rand(-20, 40), origin.y + rand(-25, 25), this, game.difficulty, enh())
+        : new Enemy(t, W + rand(30, 230), spec.y + rand(-80, 80), this, game.difficulty, enh());
       e.vx = -rand(170, 250);
       e.vy = rand(-40, 40);
       this.members.push(e);
       game.enemies.push(e);
     }
     (spec.leaders || []).forEach((t, i) => {
-      const e = new Enemy(t, W + 280 + i * 40, spec.y + (i ? 60 : 0), this, game.difficulty);
+      const e = new Enemy(t, W + 280 + i * 40, spec.y + (i ? 60 : 0), this, game.difficulty, enh());
       e.vx = -120;
       e.leader = true;
       this.leaders.push(e);
@@ -78,6 +81,28 @@ export class Swarm {
     this.updatePhase(dt);
     this.steerMembers(dt);
     this.steerLeaders(dt);
+    this.updateSpecials(dt);
+  }
+
+  /**
+   * Coordinated specials: while holding a shape, the swarm periodically orders
+   * its enhanced members to fire specials in a pattern set by that shape.
+   */
+  updateSpecials(dt) {
+    if (this.phase !== 'form' || !this.shape || !this.game.player.alive) return;
+    if ((this.specialTimer -= dt) > 0) return;
+    this.specialTimer = rand(7, 10);
+    const enh = this.members.filter((m) => m.enhanced && m.state === 'fly' && m.x < this.game.W - 10);
+    if (!enh.length) return;
+    const pattern = SHAPES[this.shape].pattern || 'burst';
+    if (pattern === 'burst') {
+      for (const m of enh) m.specialDelay = rand(0, 0.08);
+    } else if (pattern === 'ripple') {
+      enh.sort((a, b) => a.slot - b.slot);
+      enh.forEach((m, i) => (m.specialDelay = i * 0.14));
+    } else {
+      for (const m of enh) m.specialDelay = (m.slot % 2) * 0.7;
+    }
   }
 
   extentY() {

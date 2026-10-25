@@ -137,6 +137,9 @@ export class Sfx {
           this.tone('sawtooth', 220, 520, 0.3, 0.025);
         }
         break;
+      case 'specialCharge':
+        if (this.throttle(name, 0.12)) this.tone('triangle', 300, 1200, 0.5, 0.04);
+        break;
       case 'extra':
         [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.1, i * 0.09));
         break;

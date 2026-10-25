@@ -35,6 +35,8 @@ const TEMPLATES = [
     },
   },
   { unlock: 6, weight: 1.5, make: (b) => ({ members: mix(['drone', 'darter', 'spinner', 'sniper'], b, 5, 20), paths: ['hold', 'sweep', 'weave'] }) },
+  // Elite squadron: every ship is an enhanced Mk II.
+  { unlock: 8, weight: 0.8, make: (b) => ({ members: mix(['drone', 'darter', 'spinner', 'sniper'], b * 0.7, 5, 12), paths: ['hold'], elite: true }) },
 ];
 
 export class Director {
@@ -68,6 +70,8 @@ export class Director {
       hp: 1 + Math.floor(w / 5) * 0.3,
     };
     this.game.maxDashers = 2 + Math.floor(this.wave / 4);
+    // Share of ships that spawn as enhanced Mk II variants.
+    this.game.enhanceChance = this.wave >= 7 ? Math.min(0.15 + (this.wave - 7) * 0.05, 0.6) : 0;
   }
 
   startWave() {
@@ -131,6 +135,7 @@ export class Director {
       y: rand(0.28, 0.62) * (H - GROUND_H),
       speed: rand(75, 105) + Math.min(this.wave * 2, 40),
       holdTime: rand(9, 13),
+      enhanceChance: t.elite ? 1 : undefined,
     };
   }
 

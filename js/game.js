@@ -12,7 +12,7 @@ import { Director } from './director.js';
 import { Mothership } from './mothership.js';
 import { makeVehicle } from './vehicles.js';
 import { HEAVY, updateHeavy, drawHeavy, drawHeavyWarnings, fizzle } from './projectiles.js';
-import { updateEnemy, drawEnemy, drawTelegraph } from './enemies.js';
+import { updateEnemy, drawEnemy, drawTelegraph, ENHANCED_SCORE } from './enemies.js';
 import { Sfx } from './audio.js';
 import { drawHud, drawControls } from './hud.js';
 
@@ -299,11 +299,11 @@ export class Game {
     this.particles.explosion(e.x, e.y, e.def.color, big ? 3 : e.r / 12);
     this.sfx.play(big ? 'bigExplode' : 'explode');
     this.shake = Math.max(this.shake, big ? 12 : 2.5);
-    if (this.player.alive) this.addScore(e.def.score, e.x, e.y);
+    if (this.player.alive) this.addScore(e.def.score * (e.enhanced ? ENHANCED_SCORE : 1), e.x, e.y);
     if (big) {
       this.spawnPowerup('P', e.x, e.y);
       if (Math.random() < 0.4) this.spawnPowerup('B', e.x, e.y + 20);
-    } else if (Math.random() < e.def.drop) {
+    } else if (Math.random() < e.def.drop * (e.enhanced ? 2 : 1)) {
       this.spawnPowerup(Math.random() < 0.72 ? 'P' : 'B', e.x, e.y);
     }
     // Rare wingman pickup (flagships drop one half the time).

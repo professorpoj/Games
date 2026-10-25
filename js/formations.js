@@ -56,9 +56,12 @@ function ring(n, r, phase = 0) {
 
 // `min`: smallest member count the shape reads well with.
 // `rotates`: whether the swarm slowly spins this shape.
+// `pattern`: how enhanced members time a coordinated special in this shape:
+//   burst = all at once, ripple = one after another along the shape,
+//   alternate = every other ship, in two volleys.
 export const SHAPES = {
   vee: {
-    min: 3, rotates: false,
+    min: 3, rotates: false, pattern: 'alternate',
     build(n) {
       const p = [[0, 0]];
       for (let i = 1; p.length < n; i++) {
@@ -69,7 +72,7 @@ export const SHAPES = {
     },
   },
   arrow: {
-    min: 7, rotates: false,
+    min: 7, rotates: false, pattern: 'alternate',
     build(n) {
       const head = Math.max(2, Math.round(n * 0.3));
       const p = [[0, 0]];
@@ -82,19 +85,19 @@ export const SHAPES = {
     },
   },
   wall: {
-    min: 3, rotates: false,
+    min: 3, rotates: false, pattern: 'ripple',
     build: (n) => Array.from({ length: n }, (_, i) => [(i % 2) * 0.9, i * 0.55]),
   },
   row: {
-    min: 3, rotates: false,
+    min: 3, rotates: false, pattern: 'ripple',
     build: (n) => Array.from({ length: n }, (_, i) => [i * 1.05, (i % 2) * 0.35]),
   },
   wave: {
-    min: 6, rotates: false,
+    min: 6, rotates: false, pattern: 'ripple',
     build: (n) => Array.from({ length: n }, (_, i) => [i * 0.85, Math.sin(i * 0.75) * 1.8]),
   },
   grid: {
-    min: 6, rotates: false,
+    min: 6, rotates: false, pattern: 'ripple',
     build(n) {
       const cols = Math.ceil(Math.sqrt(n * 1.3));
       return Array.from({ length: n }, (_, i) => {
@@ -104,11 +107,11 @@ export const SHAPES = {
     },
   },
   circle: {
-    min: 5, rotates: true,
+    min: 5, rotates: true, pattern: 'burst',
     build: (n) => ring(n, Math.max((n * 1.05) / TAU, 1)),
   },
   rings: {
-    min: 12, rotates: true,
+    min: 12, rotates: true, pattern: 'burst',
     build(n) {
       for (let inner = Math.round(n * 0.4); inner >= 3; inner--) {
         const outer = n - inner;
@@ -119,19 +122,19 @@ export const SHAPES = {
     },
   },
   diamond: {
-    min: 8, rotates: true,
+    min: 8, rotates: true, pattern: 'alternate',
     build: (n) => alongPerimeter([[-1, 0], [0, -1], [1, 0], [0, 1]], n, 1.05),
   },
   star: {
-    min: 10, rotates: true,
+    min: 10, rotates: true, pattern: 'burst',
     build: (n) => alongPerimeter(starVerts(5, 0.45), n, 1.0),
   },
   triangle: {
-    min: 6, rotates: true,
+    min: 6, rotates: true, pattern: 'alternate',
     build: (n) => alongPerimeter([[-1, 0], [0.5, -0.866], [0.5, 0.866]], n, 1.05),
   },
   bloom: {
-    min: 7, rotates: true,
+    min: 7, rotates: true, pattern: 'burst',
     // Sunflower (Vogel) spiral: a dense, evenly filled disc.
     build: (n) => Array.from({ length: n }, (_, i) => {
       const r = 0.6 * Math.sqrt(i + 0.5), a = i * 2.39996;
@@ -139,7 +142,7 @@ export const SHAPES = {
     }),
   },
   cross: {
-    min: 9, rotates: true,
+    min: 9, rotates: true, pattern: 'alternate',
     build(n) {
       const p = [[0, 0]];
       for (let i = 1; p.length < n; i++) {
@@ -149,7 +152,7 @@ export const SHAPES = {
     },
   },
   spiral: {
-    min: 8, rotates: true,
+    min: 8, rotates: true, pattern: 'ripple',
     build(n) {
       const p = [];
       const b = 1.15 / TAU;

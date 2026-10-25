@@ -121,6 +121,22 @@ export class Sfx {
       case 'alarm':
         [0, 0.35, 0.7].forEach((d) => this.tone('square', 660, 440, 0.25, 0.06, d));
         break;
+      case 'mortar':
+        if (this.throttle(name, 0.08)) {
+          this.tone('sine', 180, 60, 0.18, 0.12);
+          this.noise(0.12, 0.08, 1200, 300);
+        }
+        break;
+      case 'cannon':
+        this.noise(0.7, 0.4, 2200, 60);
+        this.tone('sine', 85, 28, 0.6, 0.35);
+        break;
+      case 'missileLaunch':
+        if (this.throttle(name, 0.1)) {
+          this.noise(0.35, 0.08, 4000, 800);
+          this.tone('sawtooth', 220, 520, 0.3, 0.025);
+        }
+        break;
       case 'extra':
         [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.1, i * 0.09));
         break;

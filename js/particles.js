@@ -1,6 +1,6 @@
 import { Pool, rand, TAU } from './utils.js';
 
-const MAX_PARTICLES = 1200;
+const MAX_PARTICLES = 1500;
 
 export class Particles {
   constructor() {
@@ -27,6 +27,7 @@ export class Particles {
     p.vr = rand(-8, 8);
     p.text = '';
     p.r1 = 0;
+    p.g = 0;
     return p;
   }
 
@@ -50,6 +51,23 @@ export class Particles {
       p.rot = r0;
       p.r1 = r1;
     }
+  }
+
+  /** Soft puff that expands and fades (dust, exhaust, contrails). */
+  smoke(x, y, vx, vy, size, life, color) {
+    const p = this.add('smoke', x, y, vx, vy, life, size, color);
+    if (p) p.drag = 1.6;
+    return p;
+  }
+
+  /** Glowing ember / shrapnel chunk that falls under gravity. */
+  ember(x, y, vx, vy, life, size, color) {
+    const p = this.add('debris', x, y, vx, vy, life, size, color);
+    if (p) {
+      p.g = 420;
+      p.drag = 0.8;
+    }
+    return p;
   }
 
   hit(x, y, color) {
@@ -81,7 +99,7 @@ export class Particles {
       }
       const k = Math.exp(-p.drag * dt);
       p.vx *= k;
-      p.vy *= k;
+      p.vy = p.vy * k + p.g * dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.rot += p.vr * dt;
@@ -94,7 +112,13 @@ export class Particles {
     // Pass 1: solid particles.
     for (const p of list) {
       const t = p.life / p.max;
-      if (p.type === 'debris') {
+      if (p.type === 'smoke') {
+        ctx.globalAlpha = 0.42 * t;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (1 + (1 - t) * 1.6), 0, TAU);
+        ctx.fill();
+      } else if (p.type === 'debris') {
         ctx.globalAlpha = Math.min(1, t * 1.5);
         ctx.fillStyle = p.color;
         ctx.save();

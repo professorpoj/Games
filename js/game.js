@@ -10,6 +10,8 @@ import { Particles } from './particles.js';
 import { Sprites } from './sprites.js';
 import { Director } from './director.js';
 import { Mothership } from './mothership.js';
+import { makeVehicle } from './vehicles.js';
+import { HEAVY, updateHeavy, drawHeavy, drawHeavyWarnings, fizzle } from './projectiles.js';
 import { updateEnemy, drawEnemy, drawTelegraph } from './enemies.js';
 import { Sfx } from './audio.js';
 import { drawHud, drawControls } from './hud.js';
@@ -57,6 +59,7 @@ export class Game {
     this.director = new Director(this);
     this.swarms = [];
     this.enemies = [];
+    this.vehicles = [];
     this.pBullets = new Pool(() => ({}));
     this.eBullets = new Pool(() => ({}));
     this.powerups = new Pool(() => ({}));
@@ -141,6 +144,7 @@ export class Game {
   newGame(demo) {
     this.swarms.length = 0;
     this.enemies.length = 0;
+    this.vehicles.length = 0;
     this.pBullets.clear();
     this.eBullets.clear();
     this.powerups.clear();
@@ -189,6 +193,25 @@ export class Game {
     if (this.score > this.hiScore) this.hiScore = this.score;
     this.persist();
     this.setState('gameover');
+  }
+
+  spawnVehicle(type) {
+    this.vehicles.push(makeVehicle(this, type));
+  }
+
+  /** Called by vehicles when destroyed (v = null for a single train car). */
+  onVehicleDestroyed(v, score, x, y) {
+    if (this.player.alive) this.addScore(score, x, y);
+    this.shake = Math.max(this.shake, v ? 12 : 6);
+    this.sfx.play('bigExplode');
+    if (!v) return;
+    if (v.kind === 'tank') {
+      this.spawnPowerup('P', x, y - 20);
+      if (Math.random() < 0.4) this.spawnPowerup('W', x + 20, y - 40);
+    } else if (v.kind === 'train') {
+      this.spawnPowerup('W', x, y - 30);
+      this.spawnPowerup('P', x - 30, y - 20);
+    } else if (Math.random() < 0.35) this.spawnPowerup('P', x, y - 20);
   }
 
   startMothership(visit) {
@@ -368,6 +391,7 @@ export class Game {
     this.updatePlayer(dt);
     this.director.update(dt);
     for (const s of this.swarms) s.update(dt);
+    for (const v of this.vehicles) v.update(dt);
     if (this.mothership) {
       this.mothership.update(dt);
       if (this.mothership.done) this.mothership = null;
@@ -381,6 +405,7 @@ export class Game {
 
     compact(this.enemies);
     compact(this.swarms);
+    compact(this.vehicles);
     this.pBullets.sweep();
     this.eBullets.sweep();
     this.powerups.sweep();
@@ -431,6 +456,10 @@ export class Game {
       if (b.x > W + 30 || b.y < -30 || b.y > H + 30) b.dead = true;
     }
     for (const b of this.eBullets.list) {
+      if (HEAVY.has(b.kind)) {
+        updateHeavy(b, dt, this);
+        continue;
+      }
       b.px = b.x;
       b.py = b.y;
       b.t += dt;
@@ -534,6 +563,15 @@ export class Game {
         this.damageEnemy(e, 14, e.x, e.y);
       }
     }
+    for (const v of this.vehicles) {
+      for (const part of v.parts) {
+        if (!part.alive || bm.hit.has(part)) continue;
+        if (Math.hypot(part.ch.x - bm.x, part.ch.y - bm.y) < bm.r) {
+          bm.hit.add(part);
+          v.damage(part, 14, part.ch.x, part.ch.y - part.top / 2);
+        }
+      }
+    }
     const ms = this.mothership;
     if (ms && !bm.hitBoss && Math.hypot(ms.x - bm.x, ms.y - bm.y) - 110 < bm.r) {
       bm.hitBoss = true;
@@ -555,6 +593,10 @@ export class Game {
       if (dx * dx + dy * dy < rr * rr) this.damageEnemy(e, WINGMAN.bombDamage, e.x, e.y);
     }
     if (this.mothership?.hits(x, y, R)) this.mothership.damage(WINGMAN.bombDamage, x, y);
+    for (const v of this.vehicles) {
+      const part = v.hitTest(x, y, R);
+      if (part) v.damage(part, WINGMAN.bombDamage, x, y);
+    }
     for (const b of this.eBullets.list) {
       const dx = b.x - x, dy = b.y - y;
       if (dx * dx + dy * dy < R2) {
@@ -577,6 +619,10 @@ export class Game {
       const rr = R + b.r;
       if (segDist2(x, y, b.px, b.py, b.x, b.y) < rr * rr) {
         b.dead = true;
+        if (HEAVY.has(b.kind)) {
+          fizzle(this, b);
+          continue;
+        }
         const a = Math.atan2(b.y - y, b.x - x);
         this.particles.add('spark', x + Math.cos(a) * R, y + Math.sin(a) * R, Math.cos(a) * 160, Math.sin(a) * 160, 0.2, 2, '#7df9ff');
         this.sfx.play('deflect');
@@ -591,7 +637,7 @@ export class Game {
       if (!w.level || w.invuln > 0) continue;
       let hit = false;
       for (const b of this.eBullets.list) {
-        if (b.dead) continue;
+        if (b.dead || b.kind === 'mortar' || b.kind === 'shell') continue;
         const rr = hr + b.r * 0.8;
         if (segDist2(w.x, w.y, b.px, b.py, b.x, b.y) < rr * rr) {
           b.dead = true;
@@ -610,6 +656,7 @@ export class Game {
           }
         }
       }
+      if (!hit) for (const v of this.vehicles) if (v.hitTest(w.x, w.y, hr, true)) hit = true;
       if (hit) this.wingmanDown(w);
     }
   }
@@ -637,6 +684,15 @@ export class Game {
         else ms.damage(b.dmg, b.x, b.y);
         continue;
       }
+      for (const v of this.vehicles) {
+        const part = v.hitTest(b.x, b.y, b.r);
+        if (!part) continue;
+        b.dead = true;
+        if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
+        else v.damage(part, b.dmg, b.x, b.y);
+        break;
+      }
+      if (b.dead) continue;
       for (const e of this.enemies) {
         if (e.dead || e.x > W + e.r) continue;
         const dx = b.x - e.x, dy = b.y - e.y, rr = e.r + b.r;
@@ -661,7 +717,8 @@ export class Game {
           this.particles.hit(b.x, b.y, '#ff6ad5');
           if (m.hp <= 0) {
             m.dead = true;
-            this.particles.explosion(m.x, m.y, '#ff6ad5', 0.5);
+            if (HEAVY.has(m.kind)) fizzle(this, m);
+            else this.particles.explosion(m.x, m.y, '#ff6ad5', 0.5);
             this.sfx.play('explode');
             if (p.alive) this.addScore(50, m.x, m.y);
           }
@@ -681,8 +738,14 @@ export class Game {
       this.killPlayer();
       return;
     }
+    for (const v of this.vehicles) {
+      if (v.hitTest(p.x, p.y, hr, true)) {
+        this.killPlayer();
+        return;
+      }
+    }
     for (const b of this.eBullets.list) {
-      if (b.dead) continue;
+      if (b.dead || b.kind === 'mortar' || b.kind === 'shell') continue;
       const rr = hr + b.r * 0.8;
       // Swept test so fast needles can't tunnel through the tiny hitbox.
       if (segDist2(p.x, p.y, b.px, b.py, b.x, b.y) < rr * rr) {
@@ -723,6 +786,7 @@ export class Game {
     this.bg.render(ctx, L(this.prevScroll, this.scroll));
 
     const ms = this.mothership;
+    for (const v of this.vehicles) v.draw(ctx, alpha, t);
     if (ms) ms.draw(ctx, L(ms.px, ms.x), L(ms.py, ms.y), t);
     for (const e of this.enemies) drawTelegraph(ctx, e, L(e.px, e.x), L(e.py, e.y), t);
 
@@ -770,6 +834,11 @@ export class Game {
     this.drawEnemyBullets(ctx, L);
     this.particles.render(ctx, this.sprites);
     if (ms) ms.drawLaser(ctx, t);
+    for (const b of this.eBullets.list) if (HEAVY.has(b.kind)) drawHeavyWarnings(ctx, b, t);
+    for (const v of this.vehicles) {
+      v.drawOverlay?.(ctx, t);
+      v.drawIncoming(ctx, t);
+    }
 
     if (this.bomb) {
       const bm = this.bomb, k = bm.t / bm.dur;
@@ -821,6 +890,10 @@ export class Game {
   drawEnemyBullets(ctx, L) {
     for (const b of this.eBullets.list) {
       const x = L(b.px, b.x), y = L(b.py, b.y);
+      if (HEAVY.has(b.kind)) {
+        drawHeavy(ctx, b, x, y, this.time, this.sprites);
+        continue;
+      }
       if (b.kind === 'needle' || b.kind === 'missile') {
         ctx.save();
         ctx.translate(x, y);

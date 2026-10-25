@@ -5,6 +5,7 @@ import { mulberry32, TAU } from './utils.js';
 import { GROUND_H } from './config.js';
 
 const TILE = 1400;
+const GROUND_AMP = 7;
 
 function layerCanvas(w, h, scale) {
   const c = document.createElement('canvas');
@@ -311,12 +312,15 @@ export class Background {
 
   buildGround(H, scale, rng) {
     const y0 = H - GROUND_H;
-    const surf = periodic(rng, [6, 13, 31, 67]);
+    // Rough enough to work the vehicles' suspension; vehicles sample this same profile.
+    const surf = periodic(rng, [5, 11, 23, 47], 0.6);
+    this.groundSurf = surf;
+    this.groundBase = y0;
     const profile = [];
-    for (let x = 0; x <= TILE; x += 5) profile.push([x, y0 + surf(x) * 5]);
+    for (let x = 0; x <= TILE; x += 4) profile.push([x, y0 + surf(x) * GROUND_AMP]);
     const top = y0 - 34;
     const { c, g } = layerCanvas(TILE, H - top, scale);
-    const yAt = (x) => y0 + surf(((x % TILE) + TILE) % TILE) * 5 - top;
+    const yAt = (x) => y0 + surf(((x % TILE) + TILE) % TILE) * GROUND_AMP - top;
 
     const grd = g.createLinearGradient(0, 0, 0, H - top);
     grd.addColorStop(0, '#26112e');
@@ -388,6 +392,15 @@ export class Background {
         ctx.drawImage(L.canvas, Math.round(x * s) / s, L.top, w, L.h);
       }
     }
+  }
+
+  /** Height of the ground surface at a screen x, matching exactly what is drawn. */
+  groundY(screenX, scroll) {
+    const L = this.layers[this.layers.length - 1];
+    const w = L.canvas.width / this.scale;
+    const off = (((scroll * L.factor) % w) + w) % w;
+    const u = (((screenX + off) % w) + w) % w;
+    return this.groundBase + this.groundSurf((u * TILE) / w) * GROUND_AMP;
   }
 
   /** Floating spores drifting faster than the ground, in front of the action. */

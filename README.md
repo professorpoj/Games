@@ -61,6 +61,20 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 | Seeker | cyan diamond with an eye | 5 | Aims a laser sight at you, locks on (turns red), then fires a 3-needle burst |
 | Bulwark | large purple octagon | 32 | Flagship: alternates 5-way spread volleys with homing missiles you can shoot down |
 
+### Ground vehicles
+
+Fast ground units race in from off-screen left (a blinking **!** chevron at the left edge warns you), brake down to match the scroll speed, then fight for a spot near your X position. Each body rides **spring/damper suspension over the actual terrain**, so it bounces, pitches over bumps, squats when accelerating, dives when braking and rocks back when it fires. Wheels spin with ground speed, and dust kicks up behind them. Flying into a vehicle kills you, and they leave after about 30 seconds if you don't destroy them.
+
+| Vehicle | First wave | Behaviour and weapon |
+|---|---|---|
+| Mortar truck (yellow) | 2 | Soft long-travel suspension; weaves just behind you. Fires 3-shell mortar salvos that arc up and **airburst** where you're heading. A dashed orange ring marks each burst point and fills in as the shell arrives. Shells can be shot down. |
+| Turbine tank (green) | 4 | Six stiff road wheels, scrolling tracks and gas-turbine exhaust that flares with throttle. Parks well behind or ahead of you, swings its huge turret, and paints a **red crosshair** with a blast-radius circle where it predicts you'll be. The crosshair locks and flashes, then a fast tracer shell detonates there in a big blast. Heavy muzzle blast and recoil. |
+| Missile train (red) | 6 | A locomotive pulling 3 launcher cars (4 from wave 10) on spring couplings that bunch up and stretch apart. Each car fires **wave-path missiles**: they pop up, lock a heading, then snake toward you along a sine wave that slowly homes. Dotted lines preview the path ahead. Missiles can be shot down. Destroying a launcher car disables it; destroying the locomotive blows up the whole train, car by car. |
+
+The shield stops all of this ordnance (shells fizzle on the bubble), and the bomb damages vehicles. Tuning is under `VEHICLES` in `js/config.js`.
+
+**Testing tip:** add `?wave=N` to the URL to start a game at wave N, for example `.../Games/?wave=6` to meet the train right away.
+
 ### Mothership (boss)
 
 After every 5th wave a warning sounds and the **mothership** moves in on the right side of the screen. Its main weapon is a **big laser**:
@@ -106,6 +120,8 @@ js/swarm.js           flocking and formation steering, slot assignment
 js/formations.js      geometric formation shapes
 js/director.js        wave building, difficulty ramp, mothership visits
 js/mothership.js      the boss: laser, hangar swarms, abilities per visit
+js/vehicles.js        ground vehicles: suspension physics, driving AI, placeholder art
+js/projectiles.js     mortar / tank shell / wave-missile ordnance, blasts and warning markers
 js/background.js      procedural tiling parallax layers
 js/particles.js, js/sprites.js, js/hud.js, js/audio.js
 ```

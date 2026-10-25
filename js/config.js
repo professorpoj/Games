@@ -77,6 +77,18 @@ export const MOTHERSHIP = {
   retreatBonus: 5000,    // x visit number
 };
 
+// Ground vehicles race in from the left, match the scroll speed and jockey
+// for position under the player. Bodies ride spring/damper suspension over
+// the real terrain profile.
+export const VEHICLES = {
+  gravity: 1300,         // suspension gravity (units/s^2)
+  mortarGravity: 520,    // gravity on lobbed mortar shells
+  truck: { hp: 16, score: 800, salvo: 3, interval: [2.6, 3.4], aoe: 34, life: 28 },
+  tank: { hp: 60, score: 2500, interval: [3.2, 4.2], aim: 1.3, lock: 0.35, shellSpeed: 680, aoe: 58, life: 32 },
+  train: { locoHp: 40, moduleHp: 14, score: 3000, moduleScore: 500, modules: 3, interval: [3.8, 5.2], missileSpeed: 200, life: 38 },
+  unlock: { truck: 2, tank: 4, train: 6 },  // first wave each type appears (guaranteed)
+};
+
 export const CONTROLS = {
   stickRadius: 62,       // logical units the knob can travel
   deadZone: 0.08,

@@ -3,7 +3,7 @@
 import { Swarm } from './swarm.js';
 import { shapesFor } from './formations.js';
 import { ENEMY_TYPES } from './enemies.js';
-import { GROUND_H } from './config.js';
+import { GROUND_H, VEHICLES } from './config.js';
 import { rand, randInt, choose, clamp, weightedPick, shuffle } from './utils.js';
 
 const fill = (type, budget, min, max) =>
@@ -50,6 +50,12 @@ export class Director {
     this.queue = [];
     this.phase = 'break';
     this.timer = demo ? 0.3 : 1.6;
+    // ?wave=N in the URL starts a real game at wave N (handy for testing).
+    const start = parseInt(new URLSearchParams(location.search).get('wave'), 10);
+    if (!demo && start > 1) {
+      this.wave = start - 1;
+      this.visits = Math.floor((start - 1) / 5);
+    }
     this.applyDifficulty();
   }
 
@@ -79,8 +85,24 @@ export class Director {
       const delay = i === 0 ? 0 : Math.max(2.5, rand(3.5, 6.5) - Math.min(w * 0.15, 1.5));
       this.queue.push({ delay, spec: this.makeSpec(tpl.make(budget, w)) });
     }
+    this.addGroundUnits(w);
     this.phase = 'active';
     if (!this.demo) this.game.showBanner(`WAVE ${w}`, w % 5 === 0 ? 'FLAGSHIP INBOUND' : '');
+  }
+
+  /** Mix ground vehicles into the wave; each type is guaranteed on its debut wave. */
+  addGroundUnits(w) {
+    const U = VEHICLES.unlock, picks = [];
+    for (const type of ['truck', 'tank', 'train']) {
+      const chance = { truck: 0.55, tank: 0.45, train: 0.4 }[type];
+      if (w === U[type] || (w > U[type] && Math.random() < chance)) picks.push(type);
+    }
+    if (w >= 9 && Math.random() < 0.4) picks.push(choose(['truck', 'tank']));
+    shuffle(picks);
+    for (const type of picks.slice(0, w >= 8 ? 3 : 2)) {
+      const at = randInt(0, this.queue.length);
+      this.queue.splice(at, 0, { delay: rand(2.5, 5), ground: type });
+    }
   }
 
   makeSpec(t) {
@@ -125,13 +147,14 @@ export class Director {
     if (this.queue.length) {
       const next = this.queue[0];
       // Keep the action flowing: don't leave the screen empty for long.
-      if (g.swarms.length === 0) next.delay = Math.min(next.delay, 0.6);
+      if (g.swarms.length === 0 && g.vehicles.length === 0) next.delay = Math.min(next.delay, 0.6);
       next.delay -= dt;
       if (next.delay <= 0) {
         this.queue.shift();
-        g.swarms.push(new Swarm(g, next.spec));
+        if (next.ground) g.spawnVehicle(next.ground);
+        else g.swarms.push(new Swarm(g, next.spec));
       }
-    } else if (g.swarms.length === 0) {
+    } else if (g.swarms.length === 0 && g.vehicles.length === 0) {
       this.phase = 'break';
       this.timer = 3;
       if (!this.demo && g.player.alive) {

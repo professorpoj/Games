@@ -183,7 +183,7 @@ Each swarm follows a moving anchor point. It either flies straight across the sc
 
 When a ship is destroyed, the formation re-forms around the survivors. Bulwarks lead from behind their escorts.
 
-**Every swarm grows by one ship per wave** (wave 10 swarms have 9 more ships than wave 1, up to 40 per swarm), including the mothership's hangar swarms. New enemy types unlock as waves go up. Every 5th wave brings a flagship. Fire rate, bullet speed and enemy HP increase over time.
+**Every swarm grows by one ship per wave** (wave 10 swarms have 9 more ships than wave 1, up to 40 per swarm), including the mothership's hangar swarms. New enemy types unlock as waves go up. Every 5th wave brings a flagship. Fire rate, bullet speed and enemy HP increase over time. **Bullet density is capped so there's always a way through:** once enemy bullets start piling up on screen (bullets within 160 units of your ship count triple), every enemy, vehicle and the mothership slows its fire, and no new attacks start until it thins out. Mk II specials respect it too: a swarm's coordinated special order includes at most 6 Mk II ships (fewer when the screen is busy), Darter mine trails are spaced so you can slip through, and Whirler spirals cut short when it's crowded. Tuning is `BULLET_DENSITY` in `js/config.js`.
 
 ## Code layout
 

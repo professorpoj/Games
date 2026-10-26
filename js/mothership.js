@@ -221,7 +221,7 @@ export class Mothership {
 
   updateTurrets(dt) {
     const g = this.game, p = g.player;
-    this.turretTimer -= dt * g.difficulty.fire;
+    this.turretTimer -= dt * g.difficulty.fire * g.fireMul;
     if (this.turretTimer > 0) return;
     this.turretTimer = 2.4;
     const n = this.visit >= 3 ? 5 : 3;
@@ -235,7 +235,7 @@ export class Mothership {
 
   updateMissiles(dt) {
     const g = this.game;
-    this.missileTimer -= dt;
+    this.missileTimer -= dt * g.fireMul;
     if (this.missileTimer > 0) return;
     this.missileTimer = 6;
     for (const side of [-1, 1]) {

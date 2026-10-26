@@ -8,6 +8,7 @@ import { TAU, rand, choose, clamp, damp, angleDiff } from './utils.js';
 
 const SLOT_GAIN = 4.2;   // position error -> desired velocity
 const STEER_GAIN = 7;    // velocity error -> acceleration (with per-type accel cap)
+const SPECIAL_ORDER_MAX = 6; // most Mk II ships one coordinated special order can include
 
 export class Swarm {
   constructor(game, spec) {
@@ -91,14 +92,25 @@ export class Swarm {
   updateSpecials(dt) {
     if (this.phase !== 'form' || !this.shape || !this.game.player.alive) return;
     if ((this.specialTimer -= dt) > 0) return;
+    if (this.game.fireMul < 0.5) {
+      this.specialTimer = 1; // screen's already busy: try again shortly
+      return;
+    }
     this.specialTimer = rand(7, 10);
-    const enh = this.members.filter((m) => m.enhanced && m.state === 'fly' && m.x < this.game.W - 10);
+    let enh = this.members.filter((m) => m.enhanced && m.state === 'fly' && m.x < this.game.W - 10);
     if (!enh.length) return;
+    // Only a handful join each order (fewer on a busy screen), spread evenly along
+    // the shape, so a big Mk II swarm can't seal the screen in one volley.
+    enh.sort((a, b) => a.slot - b.slot);
+    const n = Math.max(1, Math.round(SPECIAL_ORDER_MAX * this.game.fireMul));
+    if (enh.length > n) {
+      const step = enh.length / n, off = rand(step);
+      enh = Array.from({ length: n }, (_, i) => enh[Math.floor(off + i * step)]);
+    }
     const pattern = SHAPES[this.shape].pattern || 'burst';
     if (pattern === 'burst') {
       for (const m of enh) m.specialDelay = rand(0, 0.08);
     } else if (pattern === 'ripple') {
-      enh.sort((a, b) => a.slot - b.slot);
       enh.forEach((m, i) => (m.specialDelay = i * 0.14));
     } else {
       for (const m of enh) m.specialDelay = (m.slot % 2) * 0.7;

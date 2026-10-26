@@ -1,6 +1,6 @@
 import {
   VIEW_H, MIN_ASPECT, MAX_ASPECT, MAX_DPR, SCROLL_SPEED, PLAYER,
-  ENEMY_BULLET_CAP, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE, P_DROP_RATE, HOMING, MOTHERSHIP,
+  ENEMY_BULLET_CAP, BULLET_DENSITY, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE, P_DROP_RATE, HOMING, MOTHERSHIP,
 } from './config.js';
 import { Pool, compact, clamp, rand, damp, segDist2, TAU } from './utils.js';
 import { Input } from './input.js';
@@ -77,6 +77,8 @@ export class Game {
     this.maxDashers = 2;
     this.dashers = 0;
     this.enemiesOnScreen = 0;
+    this.fireMul = 1;
+    this.bulletLoad = 0;
     this.director = new Director(this);
     this.swarms = [];
     this.enemies = [];
@@ -182,6 +184,7 @@ export class Game {
     this.mothership = null;
     this.gameOverTimer = 0;
     this.timeScale = 1;
+    this.fireMul = 1;
     this.player.power = 1;
     this.player.overdrive = 0;
     this.player.laser = 0;
@@ -429,6 +432,7 @@ export class Game {
 
     this.updatePlayer(dt);
     this.updateLasers(dt);
+    this.updateFireMul();
     this.director.update(dt);
     for (const s of this.swarms) s.update(dt);
     for (const v of this.vehicles) v.update(dt);
@@ -641,6 +645,19 @@ export class Game {
       }
     }
     return best;
+  }
+
+  /** Enemy fire-rate multiplier from how many enemy bullets are on screen (see BULLET_DENSITY). */
+  updateFireMul() {
+    const W = this.W, H = this.H, p = this.player, D = BULLET_DENSITY, near2 = D.nearR * D.nearR;
+    let n = 0;
+    for (const b of this.eBullets.list) {
+      if (b.dead || b.kind === 'well' || b.x < 0 || b.x > W || b.y < 0 || b.y > H) continue;
+      n++;
+      if (p.alive && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < near2) n += D.nearWeight;
+    }
+    this.bulletLoad = n;
+    this.fireMul = clamp((BULLET_DENSITY.max - n) / (BULLET_DENSITY.max - BULLET_DENSITY.calm), 0, 1);
   }
 
   updateEnemies(dt) {

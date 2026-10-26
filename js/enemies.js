@@ -121,7 +121,7 @@ export function updateEnemy(e, dt, g) {
   const onScreen = e.x > 8 && e.x < g.W - 8 && e.y > 8 && e.y < g.H - 8;
   e.visibleTime = onScreen ? e.visibleTime + dt : 0;
   const armed = onScreen && p.alive && e.visibleTime > 0.6;
-  if (armed && e.state === 'fly') e.fireCd -= dt * diff.fire;
+  if (armed && e.state === 'fly') e.fireCd -= dt * diff.fire * g.fireMul;
   if (!p.alive && (e.state === 'aim' || e.state === 'burst' || e.state === 'windup' || e.state === 'wind')) {
     e.state = 'fly';
     e.fireCd = rand(def.fire[0], def.fire[1]);
@@ -181,10 +181,13 @@ export function updateEnemy(e, dt, g) {
         face = Math.atan2(e.vy, e.vx);
         if (Math.random() < 0.6) g.particles.trail(e.x, e.y, def.color);
         if (e.dashes && (e.mineCd -= dt) <= 0) {
-          // Special: the afterburner drops a trail of hovering mines.
-          e.mineCd = 0.07;
-          const m = g.fireEnemy('orb', e.x, e.y, 0, 0, SPECIAL_COLOR);
-          if (m) m.life = 2.2;
+          // Special: the afterburner drops a trail of hovering mines (spaced so you can
+          // slip between them, and skipped while the screen is already crowded).
+          e.mineCd = 0.12;
+          if (g.fireMul > 0.3) {
+            const m = g.fireEnemy('orb', e.x, e.y, 0, 0, SPECIAL_COLOR);
+            if (m) m.life = 2.2;
+          }
         }
         if (e.timer <= 0 || e.x < -60 || e.y < -60 || e.y > g.H + 60) {
           if (e.dashes > 1) {
@@ -207,8 +210,9 @@ export function updateEnemy(e, dt, g) {
       if (e.spiral > 0) {
         // Special: three-armed spiral stream.
         e.spiral -= dt;
+        if (g.fireMul < 0.3) e.spiral = 0; // cut the stream short when the screen is crowded
         if ((e.spiralCd -= dt) <= 0) {
-          e.spiralCd = 0.07;
+          e.spiralCd = 0.09;
           for (let k = 0; k < 3; k++) g.fireEnemy('orb', e.x, e.y, e.spin + (k * TAU) / 3, 150 * diff.speed, SPECIAL_COLOR);
         }
         break;

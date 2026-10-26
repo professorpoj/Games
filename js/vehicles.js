@@ -364,7 +364,7 @@ export class Truck extends Vehicle {
       this.turret += angleDiff(this.turret, want) * damp(6, dt);
     }
 
-    this.fireCd -= dt * g.difficulty.fire;
+    this.fireCd -= dt * g.difficulty.fire * g.fireMul;
     if (this.salvoLeft > 0) {
       this.salvoCd -= dt;
       if (this.salvoCd <= 0) this.fireMortar();
@@ -515,7 +515,7 @@ export class Tank extends Vehicle {
     const S = V.tank.shellSpeed * this.shellMul * g.difficulty.speed;
     if (this.state === 'reload') {
       if (p.alive) this.aimAt(piv, p.x, p.y, dt, 1.4 * this.aimMul);
-      this.timer -= dt * g.difficulty.fire;
+      this.timer -= dt * g.difficulty.fire * g.fireMul;
       if (this.timer <= 0 && this.canFire(this.x)) {
         this.state = 'aim';
         this.timer = this.aimTime;
@@ -741,7 +741,7 @@ export class Train extends Vehicle {
       }
       return;
     }
-    c.cd -= dt * g.difficulty.fire;
+    c.cd -= dt * g.difficulty.fire * g.fireMul;
     if (c.cd <= 0 && this.canFire(c.ch.x)) {
       c.salvo = 2;
       c.salvoCd = 0;

@@ -154,7 +154,13 @@ export const CONTROLS = {
 // Every swarm gets this many extra ships per wave beyond wave 1 (wave 10 = +9).
 export const SWARM_GROWTH = { perWave: 1, maxSize: 40 };
 
-export const ENEMY_BULLET_CAP = 380;
+// Bullet density control: as enemy bullets pile up on screen, every enemy, vehicle
+// and the mothership holds its fire, so there's always a way through. Fire runs at
+// full rate up to `calm` bullets, slows linearly, and no new attacks start at `max`.
+// Bullets within `nearR` of your ship count `nearWeight` extra, so crowding around you
+// throttles fire even when the rest of the screen is quiet.
+export const BULLET_DENSITY = { calm: 50, max: 120, nearR: 160, nearWeight: 2 };
+export const ENEMY_BULLET_CAP = 220;  // hard backstop
 export const EXTRA_LIFE_EVERY = 75000;
 // Every chance of a P (weapon power) pickup is scaled by this: 0.35 = 35% of the original rate.
 export const P_DROP_RATE = 0.35;

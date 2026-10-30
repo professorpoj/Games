@@ -109,9 +109,14 @@ export class Sfx {
         this.tone('sine', 520, 1250, 0.16, 0.12);
         this.tone('sine', 780, 1560, 0.16, 0.08, 0.06);
         break;
-      case 'bomb':
+      case 'pulse':
         this.noise(1.2, 0.45, 3000, 50);
         this.tone('sine', 70, 28, 1.1, 0.35);
+        break;
+      case 'bombDrop':
+        // Release clunk, then the classic falling whistle.
+        this.tone('square', 160, 90, 0.06, 0.05);
+        this.tone('sine', 1500, 520, 1.0, 0.035, 0.05);
         break;
       case 'enemyShot':
         if (this.throttle(name, 0.09)) this.tone('sine', 700, 360, 0.08, 0.035);

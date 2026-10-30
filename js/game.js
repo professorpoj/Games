@@ -1,6 +1,6 @@
 import {
   VIEW_H, MIN_ASPECT, MAX_ASPECT, MAX_DPR, SCROLL_SPEED, PLAYER,
-  ENEMY_BULLET_CAP, BULLET_DENSITY, EXTRA_LIFE_EVERY, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE, P_DROP_RATE, HOMING, MOTHERSHIP,
+  ENEMY_BULLET_CAP, BULLET_DENSITY, EXTRA_LIFE_EVERY, PULSE, BOMB, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE, P_DROP_RATE, HOMING, MOTHERSHIP,
 } from './config.js';
 import { Pool, compact, clamp, rand, damp, segDist2, TAU } from './utils.js';
 import { Input } from './input.js';
@@ -11,7 +11,7 @@ import { Sprites } from './sprites.js';
 import { Director } from './director.js';
 import { Mothership } from './mothership.js';
 import { makeVehicle } from './vehicles.js';
-import { HEAVY, updateHeavy, drawHeavy, drawHeavyWarnings, fizzle } from './projectiles.js';
+import { HEAVY, updateHeavy, drawHeavy, drawHeavyWarnings, fizzle, blast } from './projectiles.js';
 import { updateEnemy, drawEnemy, drawTelegraph, ENHANCED_SCORE, armorHit, reflectBolt, maceHead, onEnemyDeath, MACE_R } from './enemies.js';
 import { ORDNANCE, ORDNANCE_R, updateOrdnance, applyWells, wellPull, drawOrdnance, splitFission } from './ordnance.js';
 import { Sfx } from './audio.js';
@@ -19,7 +19,7 @@ import { drawHud, drawControls } from './hud.js';
 
 const BULLET_R = { orb: 5, big: 8, needle: 3.5, missile: 6, ...ORDNANCE_R };
 const POWERUP_COLOR = { P: '#ffd23f', B: '#ff5fd2', W: '#5dff7a', H: '#ff7b3a' };
-const PLAYER_SHOT_R = { shot: 5, orange: 5, red: 5, wing: 4, wblue: 4, worange: 4, wred: 4, wbomb: 7, pmissile: 5 };
+const PLAYER_SHOT_R = { shot: 5, orange: 5, red: 5, wing: 4, wblue: 4, worange: 4, wred: 4, wbomb: 7, pmissile: 5, pbomb: 6 };
 const WING_BOLT_COLOR = { wing: '#5dff7a', wblue: '#4cc9f0', worange: '#ff9a2e', wred: '#ff3b3b' };
 const NEON = '#ff3ec8';
 const STORE = 'swarmbreaker.v1';
@@ -94,7 +94,7 @@ export class Game {
     this.flash = 0;
     this.timeScale = 1;
     this.banner = null;
-    this.bomb = null;
+    this.pulse = null;
     this.mothership = null;
     this.debug = /[?&]debug/.test(location.search);
     this.fps = 60;
@@ -175,12 +175,12 @@ export class Game {
     this.particles.clear();
     this.score = 0;
     this.lives = PLAYER.startLives;
-    this.bombs = PLAYER.startBombs;
+    this.pulses = PLAYER.startPulses;
     this.chain = 0;
     this.chainTimer = 0;
     this.nextLife = EXTRA_LIFE_EVERY;
     this.banner = null;
-    this.bomb = null;
+    this.pulse = null;
     this.mothership = null;
     this.gameOverTimer = 0;
     this.timeScale = 1;
@@ -191,6 +191,7 @@ export class Game {
     this.player.clearWings();
     this.player.homing = 0;
     this.player.missileCd = 0;
+    this.player.bombCd = 0;
     this.player.shield = 1;
     this.player.shieldOn = false;
     this.director.reset(demo);
@@ -382,15 +383,76 @@ export class Game {
     if (this.lives <= 0) this.gameOverTimer = 2;
   }
 
-  useBomb() {
+  usePulse() {
     const p = this.player;
-    if (!p.alive || this.bombs <= 0 || this.bomb) return;
-    this.bombs--;
-    // Bombs only hit enemy ships; bullets are the shield's job.
-    this.bomb = { x: p.x, y: p.y, r: 0, t: 0, dur: 0.75, hit: new Set() };
+    if (!p.alive || this.pulses <= 0 || this.pulse) return;
+    this.pulses--;
+    // The pulse only hits enemy ships; bullets are the shield's job.
+    this.pulse = { x: p.x, y: p.y, r: 0, t: 0, dur: 0.75, hit: new Set() };
     this.shake = 12;
     this.flash = 0.25;
-    this.sfx.play('bomb');
+    this.sfx.play('pulse');
+  }
+
+  /** Let go of a dumb bomb: it keeps the ship's velocity at the moment of release. */
+  dropBomb() {
+    const p = this.player;
+    if (!p.alive || p.entry > 0 || p.bombCd > 0) return;
+    p.bombCd = BOMB.cooldown;
+    this.firePlayer(p.x - 4, p.y + 9, p.vx, p.vy, 0, 'pbomb');
+    this.sfx.play('bombDrop');
+  }
+
+  /**
+   * Dumb bomb impact. Damage scales linearly with distance from the impact point
+   * (measured to each target's nearest edge): BOMB.mul x the pulse at 0, nothing
+   * at BOMB.radius. The blast also shoves enemy ships and rocks vehicles.
+   */
+  bombBlast(x, y) {
+    const R = BOMB.radius, M = BOMB.mul;
+    const scale = (d) => Math.max(0, 1 - d / R);
+    for (const e of this.enemies) {
+      if (e.dead) continue;
+      const dx = e.x - x, dy = e.y - y, dist = Math.hypot(dx, dy) || 1;
+      const k = scale(Math.max(0, dist - e.r));
+      if (k <= 0) continue;
+      e.vx += (dx / dist) * BOMB.knockback * k;
+      e.vy += (dy / dist) * BOMB.knockback * k;
+      this.damageEnemy(e, PULSE.damage * M * k, e.x, e.y);
+    }
+    for (const v of this.vehicles) {
+      const kicked = new Set();
+      for (const part of v.parts) {
+        if (!part.alive) continue;
+        const bx = v.box(part);
+        const cx = clamp(x, bx.x0, bx.x1), cy = clamp(y, bx.y0, bx.y1);
+        const k = scale(Math.hypot(x - cx, y - cy));
+        if (k <= 0) continue;
+        v.damage(part, PULSE.vehicleDamage * M * k, cx, cy);
+        if (!kicked.has(part.ch)) {
+          // Shock under the suspension: bounce the body and pitch it away from the blast.
+          kicked.add(part.ch);
+          part.ch.vy -= 260 * k;
+          part.ch.pv += Math.sign(part.ch.x - x || 1) * 2.5 * k;
+        }
+      }
+    }
+    const ms = this.mothership;
+    if (ms && ms.state === 'fight') {
+      const ex = (x - ms.x) / MOTHERSHIP.rx, ey = (y - ms.y) / MOTHERSHIP.ry, q = Math.hypot(ex, ey);
+      const dist = Math.hypot(x - ms.x, y - ms.y);
+      const k = scale(q <= 1 ? 0 : dist * (1 - 1 / q));
+      if (k > 0) ms.damage(PULSE.bossDamage * M * k, x, y);
+    }
+    // Fireball plus a ring showing the full damage radius, and dirt thrown up.
+    blast(this, x, y, 72, '#ffb347', false);
+    this.particles.ring(x, y, '#ffe2a8', 10, R, 0.45, 3);
+    for (let i = 0; i < 18; i++) {
+      const a = -Math.PI / 2 + rand(-1.1, 1.1), s = rand(180, 520);
+      this.particles.add('debris', x, y, Math.cos(a) * s, Math.sin(a) * s, rand(0.6, 1.1), rand(3, 6), '#5a4650');
+    }
+    this.shake = Math.max(this.shake, 16);
+    this.flash = Math.max(this.flash, 0.18);
   }
 
   clearEnemyBullets(sparkle) {
@@ -422,9 +484,11 @@ export class Game {
         this.pause();
         return;
       }
-      if (input.consumeBomb()) this.useBomb();
+      if (input.consumePulse()) this.usePulse();
+      if (input.consumeBomb()) this.dropBomb();
       if (input.consumeShield()) this.player.toggleShield();
     } else {
+      input.consumePulse();
       input.consumeBomb();
       input.consumeShield();
     }
@@ -443,7 +507,7 @@ export class Game {
     this.updateBullets(dt);
     applyWells(this, dt);
     this.updatePowerups(dt);
-    this.updateBomb(dt);
+    this.updatePulse(dt);
     this.collide();
     this.particles.update(dt);
     this.bg.tick(dt);
@@ -474,7 +538,7 @@ export class Game {
     p.py = p.y;
     if (this.state === 'playing' && this.lives > 0 && p.respawnTimer > 0 && (p.respawnTimer -= dt) <= 0) {
       p.spawn();
-      this.bombs = Math.max(this.bombs, PLAYER.startBombs);
+      this.pulses = Math.max(this.pulses, PLAYER.startPulses);
       this.clearEnemyBullets(true);
     }
   }
@@ -679,6 +743,18 @@ export class Game {
     for (const b of this.pBullets.list) {
       b.px = b.x;
       b.py = b.y;
+      if (b.kind === 'pbomb') {
+        // Ballistic, no drag: constant horizontal speed, constant downward acceleration.
+        b.x += b.vx * dt;
+        b.y += b.vy * dt + 0.5 * BOMB.gravity * dt * dt;
+        b.vy += BOMB.gravity * dt;
+        const gy = this.bg.groundY(b.x, this.scroll);
+        if (b.y + b.r >= gy) {
+          b.dead = true;
+          this.bombBlast(b.x, gy);
+        } else if (b.x < -60 || b.x > W + 60) b.dead = true;
+        continue;
+      }
       if (b.kind === 'pmissile') this.steerMissile(b, dt);
       b.x += b.vx * dt;
       b.y += b.vy * dt;
@@ -796,13 +872,13 @@ export class Game {
         this.particles.text(p.x, p.y - 26, '+2000', '#5dff7a', 14);
       }
     } else {
-      this.bombs = Math.min(this.bombs + 1, 5);
-      this.particles.text(p.x, p.y - 26, 'BOMB +1', '#ff5fd2', 14);
+      this.pulses = Math.min(this.pulses + 1, 5);
+      this.particles.text(p.x, p.y - 26, 'PULSE +1', '#ff5fd2', 14);
     }
   }
 
-  updateBomb(dt) {
-    const bm = this.bomb;
+  updatePulse(dt) {
+    const bm = this.pulse;
     if (!bm) return;
     bm.t += dt;
     const k = Math.min(1, bm.t / bm.dur);
@@ -813,7 +889,7 @@ export class Game {
       const dx = e.x - bm.x, dy = e.y - bm.y;
       if (dx * dx + dy * dy < r2) {
         bm.hit.add(e);
-        this.damageEnemy(e, 14, e.x, e.y);
+        this.damageEnemy(e, PULSE.damage, e.x, e.y);
       }
     }
     for (const v of this.vehicles) {
@@ -821,16 +897,16 @@ export class Game {
         if (!part.alive || bm.hit.has(part)) continue;
         if (Math.hypot(part.ch.x - bm.x, part.ch.y - bm.y) < bm.r) {
           bm.hit.add(part);
-          v.damage(part, 14, part.ch.x, part.ch.y - part.top / 2);
+          v.damage(part, PULSE.vehicleDamage, part.ch.x, part.ch.y - part.top / 2);
         }
       }
     }
     const ms = this.mothership;
     if (ms && !bm.hitBoss && Math.hypot(ms.x - bm.x, ms.y - bm.y) - 110 < bm.r) {
       bm.hitBoss = true;
-      ms.damage(20, ms.x - 100, ms.y);
+      ms.damage(PULSE.bossDamage, ms.x - 100, ms.y);
     }
-    if (bm.t >= bm.dur) this.bomb = null;
+    if (bm.t >= bm.dur) this.pulse = null;
   }
 
   /** Wingman bomb: splash damage and clears nearby enemy bullets. */
@@ -945,14 +1021,21 @@ export class Game {
     }
   }
 
+  /** Wingman and dumb bombs explode on contact. Returns true if `b` was one. */
+  detonate(b) {
+    if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
+    else if (b.kind === 'pbomb') this.bombBlast(b.x, b.y);
+    else return false;
+    return true;
+  }
+
   collide() {
     const p = this.player, W = this.W, ms = this.mothership;
     for (const b of this.pBullets.list) {
       if (b.dead) continue;
       if (ms && ms.state !== 'retreat' && ms.hits(b.x, b.y, b.r)) {
         b.dead = true;
-        if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
-        else {
+        if (!this.detonate(b)) {
           ms.damage(b.dmg, b.x, b.y);
           this.missileBurst(b);
         }
@@ -962,8 +1045,7 @@ export class Game {
         const part = v.hitTest(b.x, b.y, b.r);
         if (!part) continue;
         b.dead = true;
-        if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
-        else {
+        if (!this.detonate(b)) {
           v.damage(part, b.dmg, b.x, b.y);
           this.missileBurst(b);
         }
@@ -976,8 +1058,8 @@ export class Game {
         if (armor) {
           // Maces and mirrors stop shots; mirrors bounce them back.
           b.dead = true;
-          if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
-          else if (armor === 'plate' && b.kind !== 'pmissile') reflectBolt(this, e, b);
+          if (this.detonate(b)) break;
+          if (armor === 'plate' && b.kind !== 'pmissile') reflectBolt(this, e, b);
           else {
             this.particles.hit(b.x, b.y, '#e8e0d8');
             this.sfx.play('deflect');
@@ -988,8 +1070,7 @@ export class Game {
         const dx = b.x - e.x, dy = b.y - e.y, rr = e.r + b.r;
         if (dx * dx + dy * dy < rr * rr) {
           b.dead = true;
-          if (b.kind === 'wbomb') this.wingBlast(b.x, b.y);
-          else {
+          if (!this.detonate(b)) {
             this.damageEnemy(e, b.dmg, b.x, b.y);
             this.missileBurst(b);
           }
@@ -1002,10 +1083,7 @@ export class Game {
         const dx = b.x - m.x, dy = b.y - m.y, rr = m.r + b.r + 2;
         if (dx * dx + dy * dy < rr * rr) {
           b.dead = true;
-          if (b.kind === 'wbomb') {
-            this.wingBlast(b.x, b.y);
-            break;
-          }
+          if (this.detonate(b)) break;
           m.hp -= b.dmg;
           this.particles.hit(b.x, b.y, '#ff6ad5');
           if (m.hp <= 0) {
@@ -1132,6 +1210,27 @@ export class Game {
         ctx.restore();
         continue;
       }
+      if (b.kind === 'pbomb') {
+        // Placeholder dumb bomb: nose follows the velocity vector.
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(Math.atan2(b.vy, b.vx));
+        ctx.fillStyle = '#3b3f4a';
+        ctx.strokeStyle = '#d7dbe6';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 9, 4.5, 0, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffb347';
+        ctx.fillRect(-12, -5, 4, 10);
+        ctx.fillStyle = '#ff5c5c';
+        ctx.beginPath();
+        ctx.arc(8, 0, 2, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+        continue;
+      }
       if (b.kind === 'wbomb') {
         const s = 22 + Math.sin(t * 30) * 4;
         ctx.drawImage(this.sprites.glow('#5dff7a', 7), x - s / 2, y - s / 2, s, s);
@@ -1165,8 +1264,8 @@ export class Game {
       v.drawIncoming(ctx, t);
     }
 
-    if (this.bomb) {
-      const bm = this.bomb, k = bm.t / bm.dur;
+    if (this.pulse) {
+      const bm = this.pulse, k = bm.t / bm.dur;
       ctx.strokeStyle = `rgba(255,95,210,${1 - k})`;
       ctx.lineWidth = 18 * (1 - k) + 2;
       ctx.beginPath();

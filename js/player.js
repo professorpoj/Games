@@ -24,6 +24,7 @@ export class Player {
     this.power = 1;
     this.overdrive = 0;
     this.homing = 0;      // missiles per salvo (0 = no launcher yet)
+    this.bombCd = 0;      // dumb bomb reload
     this.missileCd = 0;   // P levels past max power: 1-7 orange, 8-14 red, 15-16 neon lasers
     this.laser = 0;       // neon laser output, ramps 0..1 while FIRE is held
     this.tilt = 0;
@@ -281,6 +282,7 @@ export class Player {
     const crowded = this.game.enemiesOnScreen > WINGMAN.bombCrowd;
     // Homing missile salvo (hold MISSILE to keep firing as it reloads).
     this.missileCd = Math.max(0, this.missileCd - dt);
+    this.bombCd = Math.max(0, this.bombCd - dt);
     if (input.missile && this.homing > 0 && this.missileCd <= 0 && this.entry <= 0) {
       this.game.fireHomingSalvo(this.x + 6, this.y, this.homing);
       this.missileCd = HOMING.cooldown;

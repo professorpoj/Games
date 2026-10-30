@@ -1,5 +1,5 @@
 // Unified input: multi-touch on-screen controls (floating analog stick or
-// relative touch-drag on the left, FIRE / SHIELD / BOMB on the right) plus
+// relative touch-drag on the left, FIRE / SHIELD / PULSE / BOMB on the right) plus
 // keyboard for desktop testing.
 import { CONTROLS } from './config.js';
 
@@ -9,7 +9,8 @@ const KEYS = {
   up: ['ArrowUp', 'KeyW'],
   down: ['ArrowDown', 'KeyS'],
   fire: ['Space', 'KeyJ', 'KeyZ'],
-  bomb: ['KeyB', 'KeyL', 'KeyC'],
+  pulse: ['KeyX', 'KeyC'],
+  bomb: ['KeyB', 'KeyL'],
   shield: ['KeyV', 'KeyE'],
   missile: ['KeyM', 'KeyQ'],
   pause: ['Escape', 'KeyP'],
@@ -30,9 +31,10 @@ export class Input {
     this.stick = { id: null, bx: 0, by: 0, kx: 0, ky: 0, homeX: 0, homeY: 0 };
     this.btn = {
       fire: { x: 0, y: 0, r: 60, label: 'FIRE', color: '#4cc9f0', down: false },
-      bomb: { x: 0, y: 0, r: 40, label: 'BOMB', color: '#ff5fd2', down: false },
+      pulse: { x: 0, y: 0, r: 40, label: 'PULSE', color: '#ff5fd2', down: false },
       shield: { x: 0, y: 0, r: 40, label: 'SHIELD', color: '#7df9ff', down: false },
       missile: { x: 0, y: 0, r: 36, label: 'MISSILE', color: '#ff7b3a', down: false },
+      bomb: { x: 0, y: 0, r: 36, label: 'BOMB', color: '#ffb347', down: false },
       pause: { x: 0, y: 0, r: 22, label: 'II', color: '#ffffff', down: false },
     };
     this.leftZone = 0;
@@ -44,6 +46,7 @@ export class Input {
     this.dragId = null;
     this.dragPos = null;
     this.fire = false;
+    this.pulseQueued = false;
     this.bombQueued = false;
     this.shieldQueued = false;
     this.pauseQueued = false;
@@ -72,11 +75,12 @@ export class Input {
     const { W, H, insets } = this.game;
     const R = W - insets.r, B = H - insets.b;
     const b = this.btn;
-    // Packed into the bottom corners: FIRE in the corner, SHIELD to its left, BOMB above.
+    // Packed into the bottom corners: FIRE in the corner, SHIELD to its left, PULSE above.
     Object.assign(b.fire, { x: R - 70, y: B - 70 });
     Object.assign(b.shield, { x: R - 180, y: B - 52 });
     Object.assign(b.missile, { x: R - 180, y: B - 146 });
-    Object.assign(b.bomb, { x: R - 52, y: B - 178 });
+    Object.assign(b.pulse, { x: R - 52, y: B - 178 });
+    Object.assign(b.bomb, { x: R - 128, y: B - 246 });
     Object.assign(b.pause, { x: R - 36, y: insets.t + 34 });
     this.stick.homeX = insets.l + 86;
     this.stick.homeY = B - 86;
@@ -90,7 +94,7 @@ export class Input {
     this.dragId = null;
     this.dragPos = null;
     this.dragDX = this.dragDY = 0;
-    this.bombQueued = this.shieldQueued = this.pauseQueued = false;
+    this.pulseQueued = this.bombQueued = this.shieldQueued = this.pauseQueued = false;
     for (const b of Object.values(this.btn)) b.down = false;
   }
 
@@ -98,6 +102,7 @@ export class Input {
     if (!GAME_KEYS.has(e.code)) return;
     if (this.game.state === 'playing') e.preventDefault();
     if (down) {
+      if (!e.repeat && KEYS.pulse.includes(e.code)) this.pulseQueued = true;
       if (!e.repeat && KEYS.bomb.includes(e.code)) this.bombQueued = true;
       if (!e.repeat && KEYS.shield.includes(e.code)) this.shieldQueued = true;
       if (!e.repeat && KEYS.pause.includes(e.code)) this.pauseQueued = true;
@@ -122,6 +127,7 @@ export class Input {
       // Buttons sit close together, so a touch goes to the nearest one it reaches.
       rec.kind = 'button';
       rec.button = this.pressTarget(p);
+      if (rec.button === 'pulse') this.pulseQueued = true;
       if (rec.button === 'bomb') this.bombQueued = true;
       if (rec.button === 'shield') this.shieldQueued = true;
     } else if (p.x < this.leftZone) {
@@ -152,7 +158,7 @@ export class Input {
   pressTarget(p) {
     if (this.inFireCorner(p)) return 'fire';
     let best = null, bestD = Infinity;
-    for (const [name, slack] of [['fire', 1.3], ['shield', 1.25], ['bomb', 1.25], ['missile', 1.2]]) {
+    for (const [name, slack] of [['fire', 1.3], ['shield', 1.25], ['pulse', 1.25], ['missile', 1.2], ['bomb', 1.2]]) {
       if (name === 'missile' && !this.game.player.homing) continue; // hidden until the first H
       const btn = this.btn[name];
       const d = Math.hypot(p.x - btn.x, p.y - btn.y) / btn.r;
@@ -222,7 +228,7 @@ export class Input {
   poll() {
     const k = this.keys, any = (list) => list.some((c) => k.has(c));
     const b = this.btn;
-    b.fire.down = b.bomb.down = b.shield.down = b.missile.down = false;
+    b.fire.down = b.pulse.down = b.bomb.down = b.shield.down = b.missile.down = false;
     for (const rec of this.pointers.values()) if (rec.button) b[rec.button].down = true;
 
     const s = this.stick;
@@ -253,6 +259,12 @@ export class Input {
     this.dragActive = this.dragId !== null;
     this.fire = b.fire.down || any(KEYS.fire) || this.game.settings.autoFire;
     this.missile = b.missile.down || any(KEYS.missile);
+  }
+
+  consumePulse() {
+    const v = this.pulseQueued;
+    this.pulseQueued = false;
+    return v;
   }
 
   consumeBomb() {

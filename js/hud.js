@@ -1,4 +1,4 @@
-import { CONTROLS, PLAYER, SHIELD, OVERDRIVE, HOMING } from './config.js';
+import { CONTROLS, PLAYER, SHIELD, OVERDRIVE, HOMING, BOMB } from './config.js';
 import { TAU, hexToRgba } from './utils.js';
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
@@ -30,11 +30,11 @@ export function drawHud(ctx, g) {
   ctx.font = `700 22px ${MONO}`;
   shadowText(ctx, String(g.score).padStart(7, '0'), L, T);
 
-  // Lives, bombs, weapon power.
+  // Lives, pulses, weapon power.
   ctx.fillStyle = '#c9f2ff';
   for (let i = 0; i < g.lives; i++) miniShip(ctx, L + 8 + i * 22, T + 40, 1);
   let bx = L + Math.max(g.lives, 1) * 22 + 14;
-  for (let i = 0; i < g.bombs; i++) {
+  for (let i = 0; i < g.pulses; i++) {
     ctx.fillStyle = '#ff5fd2';
     ctx.beginPath();
     ctx.arc(bx + 7 + i * 18, T + 40, 6.5, 0, TAU);
@@ -165,6 +165,19 @@ function drawShieldButton(ctx, b, p) {
   ctx.globalAlpha = base;
 }
 
+function drawBombButton(ctx, b, p) {
+  const base = ctx.globalAlpha;
+  ctx.globalAlpha = base * (p.bombCd <= 0 ? 1 : 0.55);
+  drawButton(ctx, b, '');
+  // Reload ring.
+  ctx.strokeStyle = b.color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, b.r + 5, -Math.PI / 2, -Math.PI / 2 + (1 - p.bombCd / BOMB.cooldown) * TAU);
+  ctx.stroke();
+  ctx.globalAlpha = base;
+}
+
 function drawMissileButton(ctx, b, p) {
   const ready = p.missileCd <= 0;
   const base = ctx.globalAlpha;
@@ -254,7 +267,8 @@ export function drawControls(ctx, g) {
   drawButton(ctx, b.fire, g.settings.autoFire ? 'AUTO' : '');
   drawShieldButton(ctx, b.shield, g.player);
   if (g.player.homing > 0) drawMissileButton(ctx, b.missile, g.player);
-  ctx.globalAlpha *= g.bombs > 0 ? 1 : 0.4;
-  drawButton(ctx, b.bomb, `x${g.bombs}`);
+  drawBombButton(ctx, b.bomb, g.player);
+  ctx.globalAlpha *= g.pulses > 0 ? 1 : 0.4;
+  drawButton(ctx, b.pulse, `x${g.pulses}`);
   ctx.globalAlpha = 1;
 }

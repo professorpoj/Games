@@ -29,9 +29,11 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 | **FIRE** (hold) | Space / J / Z | Shoot |
 | **SHIELD** (tap on / tap off) | V / E | Bubble that destroys enemy bullets touching it. Lasts 4 s on a full meter, recharges 5x slower (20 s) |
 | **MISSILE** (appears once you have an H; hold to keep firing) | M / Q | Fires a salvo of homing missiles, one per H level, each chasing one of the nearest enemies. Reloads in 1.6 s |
-| **BOMB** | B / L / C | Shockwave that damages every enemy ship on screen (doesn't touch bullets) |
+| **PULSE** | X / C | Shockwave that sweeps the screen and hits every enemy ship once for 14 damage (doesn't touch bullets). Uses one pulse from your stock (shown top left; **B** pickups add one) |
+| **BOMB** | B / L | Drops a very heavy **dumb bomb** (see below). Reloads in 3 s (ring around the button) |
 | Pause button | P / Esc | Pause |
 
+- **Dumb bomb:** it leaves the ship with **the ship's own velocity** at the moment you let go (move right while dropping and it carries forward; climb and it's tossed up first), then **only gravity** acts on it (700 units/s², no air resistance), so it flies a true parabola, nose following its flight path. Mass doesn't change how fast it falls, but it hits hard: it explodes on contact with the ground, a vehicle, an enemy ship or the mothership, and the **damage scales radially from the impact point**: **3x the pulse** at ground zero (42 to ships and vehicles, 60 to the mothership) falling linearly to nothing 160 units out, measured to each target's nearest edge. The blast also shoves enemy ships away and kicks vehicles up on their suspension. It never hurts you. Tuning is `BOMB` (and `PULSE`) in `js/config.js`.
 - **Joystick mode:** the stick appears wherever your left thumb lands and follows it if you drag past the edge, so changing direction is always instant. It has a small dead zone and a gentle response curve for fine adjustments.
 - **Touch-drag mode** (switch it in the menu): the ship moves 1:1 with your finger, like a trackpad. This is the most precise option.
 - **Auto-fire** can be turned on in the menu.
@@ -40,7 +42,7 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 
 - **Fixed 120 Hz simulation with render interpolation.** Movement and collisions behave the same on 60, 90 and 120 Hz screens.
 - **Precise ship.** It speeds up and slows down quickly, stops at the screen edges without bouncing, and has a tiny 4-unit hitbox. Fast bullets use swept collision so they can't pass through you between frames.
-- **Weapon power 1–4** from **P** pickups, which are deliberately rare (every P drop chance is scaled by `P_DROP_RATE` in `js/config.js`, currently 0.35, i.e. 35% of the original rate). **B** pickups add bombs. **Losing a ship costs two P levels** (the last overdrive steps first, then weapon power levels).
+- **Weapon power 1–4** from **P** pickups, which are deliberately rare (every P drop chance is scaled by `P_DROP_RATE` in `js/config.js`, currently 0.35, i.e. 35% of the original rate). **B** pickups add a pulse. **Losing a ship costs two P levels** (the last overdrive steps first, then weapon power levels).
 - **Overdrive** (P pickups after max power): at max power your gun fires 7 beam chains. Each extra **P** upgrades one chain, starting with the centre and working outward top/bottom. Damage is relative to the original blue bolt:
   - **Blue** (normal bolts): **0.8×**.
   - **Orange** (P #1–7 past max): **1×**.
@@ -94,7 +96,7 @@ Fast ground units race in from off-screen left (a blinking **!** chevron at the 
 | Turbine tank (3 tiers) | 4 | Six stiff road wheels, scrolling tracks and gas-turbine exhaust that flares with throttle. Parks at random spots between 45% and 25% in from the right edge, moving to a new one every few seconds. It swings its huge turret anywhere and **shells you across the entire screen** (exempt from the right-40% targeting limit), and paints a **red crosshair** with a blast-radius circle where it predicts you'll be. The crosshair locks and flashes, then a fast tracer shell detonates there in a big blast. Heavy muzzle blast and recoil. Comes in **three tiers**, each with faster targeting (turret swing plus the time from crosshair to lock to shot) and a faster shell. **Blue-grey** (from wave 4): 0.7× targeting, 1× shell. **Purple** (from wave 8): 1× targeting, 1.25× shell. **Dark blood red** (from wave 12): 1.5× targeting, 1.5× shell. A new tier always shows up on its debut wave; after that each tank is a random unlocked tier. |
 | Missile train (red) | 6 | A locomotive pulling 3 launcher cars (4 from wave 10) on spring couplings that bunch up and stretch apart. Each car fires **wave-path missiles**: they pop up, lock a heading, then snake toward you along a sine wave that slowly homes. Dotted lines preview the path ahead. Missiles can be shot down. Destroying a launcher car disables it; destroying the locomotive (20 HP, half its old toughness) blows up the whole train, car by car. |
 
-The shield stops all of this ordnance (shells fizzle on the bubble), and the bomb damages vehicles. Tuning is under `VEHICLES` in `js/config.js`.
+The shield stops all of this ordnance (shells fizzle on the bubble), and both the pulse and the dumb bomb damage vehicles. Tuning is under `VEHICLES` in `js/config.js`.
 
 **Testing tip:** add `?wave=N` to the URL to start a game at wave N, for example `.../Games/?wave=6` to meet the train right away.
 

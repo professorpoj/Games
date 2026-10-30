@@ -26,7 +26,7 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 | Touch (landscape) | Keyboard | Action |
 |---|---|---|
 | Left half: floating joystick (or touch-drag mode) | WASD / arrows | Move in any direction |
-| **FIRE** (hold) | Space / J / Z | Shoot |
+| **FIRE** (hold) | Space / , / . | Shoot |
 | **SHIELD** (tap on / tap off) | V / E | Bubble that destroys enemy bullets touching it. Lasts 4 s on a full meter, recharges 5x slower (20 s) |
 | **MISSILE** (appears once you have an H; hold to keep firing) | M / Q | Fires a salvo of homing missiles, one per H level, each chasing one of the nearest enemies. Reloads in 1.6 s |
 | **SHOCK** | X / C | Shockwave that sweeps the screen and hits every enemy ship once for 14 damage (doesn't touch bullets). Uses one shock round: you start with 2, pink **S** pickups add one (carry up to 5) |

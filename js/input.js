@@ -8,7 +8,7 @@ const KEYS = {
   right: ['ArrowRight', 'KeyD'],
   up: ['ArrowUp', 'KeyW'],
   down: ['ArrowDown', 'KeyS'],
-  fire: ['Space', 'KeyJ', 'KeyZ'],
+  fire: ['Space', 'Comma', 'Period'],
   shock: ['KeyX', 'KeyC'],
   bomb: ['KeyB', 'KeyL'],
   shield: ['KeyV', 'KeyE'],

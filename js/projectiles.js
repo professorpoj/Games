@@ -11,7 +11,7 @@ const CONTRAIL = '#d9d2e6';
 
 /**
  * Area-of-effect explosion. Harmful blasts kill the player / wingmen inside the
- * radius unless the shield is up (the shield protects against all ordnance).
+ * radius unless a purple or gold shield is up (a cyan shield doesn't stop blasts).
  */
 export function blast(g, x, y, R, color, harmful) {
   const P = g.particles;
@@ -38,7 +38,7 @@ export function blast(g, x, y, R, color, harmful) {
   if (!harmful) return;
 
   const p = g.player;
-  if (p.shieldOn) return;
+  if (p.shieldOn && p.shieldTier >= 1) return;
   for (const w of p.wings) {
     if (!w.level || w.invuln > 0) continue;
     if (Math.hypot(w.x - x, w.y - y) < R + WINGMAN.hitRadius) g.wingmanDown(w);

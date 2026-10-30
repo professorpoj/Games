@@ -109,7 +109,7 @@ export class Sfx {
         this.tone('sine', 520, 1250, 0.16, 0.12);
         this.tone('sine', 780, 1560, 0.16, 0.08, 0.06);
         break;
-      case 'shock':
+      case 'pulse':
         this.noise(1.2, 0.45, 3000, 50);
         this.tone('sine', 70, 28, 1.1, 0.35);
         break;

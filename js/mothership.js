@@ -2,7 +2,7 @@
 // visit adds abilities: 2 = side turrets + sweeping laser (its cone widens
 // every visit), 4+ = double laser shots and homing missile salvos. Hull HP
 // grows every visit.
-import { GROUND_H, MOTHERSHIP as M, PLAYER, WINGMAN, SWARM_GROWTH } from './config.js';
+import { GROUND_H, MOTHERSHIP as M, PLAYER, WINGMAN, SWARM_GROWTH, SHIELD } from './config.js';
 import { shapesFor } from './formations.js';
 import { Swarm } from './swarm.js';
 import { TAU, rand, choose, clamp, damp, segDist2, shuffle } from './utils.js';
@@ -74,9 +74,10 @@ export class Mothership {
     g.shake = 16;
     g.flash = 0.3;
     for (let i = 0; i < 6; i++) g.particles.explosion(this.x + rand(-M.rx, M.rx) * 0.7, this.y + rand(-M.ry, M.ry) * 0.7, '#b46bff', 1.6);
-    g.maybeDropP(this.x - M.rx, this.y - 30);
+    g.maybeDropU(this.x - M.rx, this.y - 30);
     g.spawnPowerup('B', this.x - M.rx, this.y + 30);
-    g.spawnPowerup('S', this.x - M.rx + 30, this.y + 60);
+    g.spawnPowerup('P', this.x - M.rx + 30, this.y + 60);
+    g.spawnPowerup('S', this.x - M.rx - 40, this.y - 20);
     g.spawnPowerup('W', this.x - M.rx - 30, this.y);
     // The only source of H (homing missiles): exactly one per mothership driven off.
     g.spawnPowerup('H', this.x - M.rx - 10, this.y - 60);
@@ -179,9 +180,18 @@ export class Mothership {
     return { x0: e.x, y0: e.y, x1: e.x + Math.cos(a) * 2000, y1: e.y + Math.sin(a) * 2000 };
   }
 
-  /** The beam ignores the shield: the only defence is to get out of the way. */
+  /** Only a gold shield holds the beam back (wingmen included); otherwise get out of the way. */
   laserHits() {
     const g = this.game, p = g.player, b = this.beam();
+    if (p.alive && p.shieldOn && p.shieldTier >= 2) {
+      const rr = M.laserHalfWidth + SHIELD.radius;
+      if (segDist2(p.x, p.y, b.x0, b.y0, b.x1, b.y1) < rr * rr && Math.random() < 0.5) {
+        const a = Math.atan2(b.y0 - p.y, b.x0 - p.x) + rand(-0.6, 0.6);
+        g.particles.add('spark', p.x + Math.cos(a) * SHIELD.radius, p.y + Math.sin(a) * SHIELD.radius, Math.cos(a) * 220, Math.sin(a) * 220, 0.25, 2.5, SHIELD.colors[2]);
+        g.sfx.play('deflect');
+      }
+      return;
+    }
     for (const w of p.wings) {
       if (!w.level || w.invuln > 0) continue;
       const rr = M.laserHalfWidth + WINGMAN.hitRadius;

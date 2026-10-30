@@ -27,14 +27,23 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 |---|---|---|
 | Left half: floating joystick (or touch-drag mode) | WASD / arrows | Move in any direction |
 | **FIRE** (hold) | Space / , / . | Shoot |
-| **SHIELD** (tap on / tap off) | V / E | Bubble that destroys enemy bullets touching it. Lasts 4 s on a full meter, recharges 5x slower (20 s) |
+| **SHIELD** (tap on / tap off) | V / E | Bubble that destroys the enemy rounds touching it. How long it lasts and what it stops depend on its level (see **Shield levels** below). It recharges 5x slower than it drains |
 | **MISSILE** (appears once you have an H; hold to keep firing) | M / Q | Fires a salvo of homing missiles, one per H level, each chasing one of the nearest enemies. Reloads in 1.6 s |
-| **SHOCK** | X / C | Shockwave that sweeps the screen and hits every enemy ship once for 14 damage (doesn't touch bullets). Uses one shock round: you start with 2, pink **S** pickups add one (carry up to 5) |
+| **PULSE** | X / C | Shockwave that sweeps the screen and hits every enemy ship once for 14 damage (doesn't touch bullets). Uses one pulse: you start with 2, pink **P** pickups add one (carry up to 5) |
 | **BOMB** | B / L | Drops a very heavy **dumb bomb** (see below). Uses one bomb: you start with 3, amber **B** pickups add one (carry up to 5) |
 | Pause button | P / Esc | Pause |
 
-- **Dumb bomb:** it leaves the ship with **the ship's own velocity** at the moment you let go (move right while dropping and it carries forward; climb and it's tossed up first), then **only gravity** acts on it (700 units/s², no air resistance), so it flies a true parabola, nose following its flight path. Mass doesn't change how fast it falls, but it hits hard: it explodes on contact with the ground, a vehicle, an enemy ship or the mothership, and the **damage scales radially from the impact point**: **3x the shock** at ground zero (42 to ships and vehicles, 60 to the mothership) falling linearly to nothing 160 units out, measured to each target's nearest edge. The blast also shoves enemy ships away and kicks vehicles up on their suspension. It never hurts you. Tuning is `BOMB` (and `SHOCK`) in `js/config.js`.
-- **Ammo:** missiles reload on their own, but shocks and bombs don't: each needs its own pickup. S and B drop separately at the same rate (Bulwarks drop each 40% of the time, and every mothership retreat drops one of each). The HUD shows your stock next to your lives (pink S pips, then amber B pips), and the buttons dim when empty. After you lose a ship you respawn with at least 2 shocks and 3 bombs.
+- **Dumb bomb:** it leaves the ship with **the ship's own velocity** at the moment you let go (move right while dropping and it carries forward; climb and it's tossed up first), then **only gravity** acts on it (700 units/s², no air resistance), so it flies a true parabola, nose following its flight path. Mass doesn't change how fast it falls, but it hits hard: it explodes on contact with the ground, a vehicle, an enemy ship or the mothership, and the **damage scales radially from the impact point**: **3x the pulse** at ground zero (42 to ships and vehicles, 60 to the mothership) falling linearly to nothing 160 units out, measured to each target's nearest edge. The blast also shoves enemy ships away and kicks vehicles up on their suspension. It never hurts you. Tuning is `BOMB` (and `PULSE`) in `js/config.js`.
+- **Ammo:** missiles reload on their own, but pulses and bombs don't: each needs its own pickup. P and B drop separately at the same rate (Bulwarks drop each 40% of the time, and every mothership retreat drops one of each). The HUD shows your stock next to your lives (pink P pips, then amber B pips), and the buttons dim when empty. After you lose a ship you respawn with at least 2 pulses and 3 bombs.
+- **Shield levels** from cyan **S** pickups. You start at level 1, and **you keep your shield level when you lose a ship**. Each S raises it one level; each tier has four levels lasting **3, 5, 8, then 10 s** on a full meter, and the next tier starts again at 3 s but stops more:
+
+  | Levels | Bubble | Stops |
+  |---|---|---|
+  | 1–4 (3 / 5 / 8 / 10 s) | cyan | Enemy shots (pellets, needles, rings, homing missiles, balls, fragments...) |
+  | 5–8 (3 / 5 / 8 / 10 s) | **purple** | + bombs and blasts: truck mortars, tank shells, train missiles |
+  | 9–12 (3 / 5 / 8 / 10 s) | **gold** | + **the mothership's big laser beam** (it protects your wingmen too) |
+
+  A cyan shield lets bombs straight through, so dodge the crosshairs until you reach purple. The shield button, its ring, the bubble and the HUD meter all take the tier's colour, and the HUD shows `S<level> <seconds>s`. S drops are rare (any enemy at 20% of its normal drop chance, Bulwarks 30%, and every mothership retreat drops one). At level 12 an S is worth 3,000 points. Tuning is `SHIELD` in `js/config.js`.
 - **Joystick mode:** the stick appears wherever your left thumb lands and follows it if you drag past the edge, so changing direction is always instant. It has a small dead zone and a gentle response curve for fine adjustments.
 - **Touch-drag mode** (switch it in the menu): the ship moves 1:1 with your finger, like a trackpad. This is the most precise option.
 - **Auto-fire** can be turned on in the menu.
@@ -43,13 +52,13 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 
 - **Fixed 120 Hz simulation with render interpolation.** Movement and collisions behave the same on 60, 90 and 120 Hz screens.
 - **Precise ship.** It speeds up and slows down quickly, stops at the screen edges without bouncing, and has a tiny 4-unit hitbox. Fast bullets use swept collision so they can't pass through you between frames.
-- **Weapon power 1–4** from **P** pickups, which are deliberately rare (every P drop chance is scaled by `P_DROP_RATE` in `js/config.js`, currently 0.35, i.e. 35% of the original rate). **S** pickups add a shock round and **B** pickups add a bomb. **Losing a ship costs two P levels** (the last overdrive steps first, then weapon power levels).
-- **Overdrive** (P pickups after max power): at max power your gun fires 7 beam chains. Each extra **P** upgrades one chain, starting with the centre and working outward top/bottom. Damage is relative to the original blue bolt:
+- **Weapon power 1–4** from yellow **U** (upgrade) pickups, which are deliberately rare (every U drop chance is scaled by `U_DROP_RATE` in `js/config.js`, currently 0.35, i.e. 35% of the original rate). **P** pickups add a pulse, **B** pickups add a bomb and **S** pickups upgrade the shield. **Losing a ship costs two U levels** (the last overdrive steps first, then weapon power levels).
+- **Overdrive** (U pickups after max power): at max power your gun fires 7 beam chains. Each extra **U** upgrades one chain, starting with the centre and working outward top/bottom. Damage is relative to the original blue bolt:
   - **Blue** (normal bolts): **0.8×**.
-  - **Orange** (P #1–7 past max): **1×**.
-  - **Red** (P #8–14): **1.5×**.
-  - **Hot neon pink laser** (P #15–16, the 4th tier): the two inner straight chains become continuous lasers (at most **2 lasers**). Each ramps to full power in 0.15 s when you press FIRE and stays on while you hold it, steadily melting everything in its path (enemies, vehicles, the mothership, shootable missiles) at **2×** the chain's damage rate, with molten sparks and embers where it cuts.
-  - That's the upgrade cap: after it, P is worth 1,000 points. The HUD pips show each chain's tier (blue / orange / red / pink).
+  - **Orange** (U #1–7 past max): **1×**.
+  - **Red** (U #8–14): **1.5×**.
+  - **Hot neon pink laser** (U #15–16, the 4th tier): the two inner straight chains become continuous lasers (at most **2 lasers**). Each ramps to full power in 0.15 s when you press FIRE and stays on while you hold it, steadily melting everything in its path (enemies, vehicles, the mothership, shootable missiles) at **2×** the chain's damage rate, with molten sparks and embers where it cuts.
+  - That's the upgrade cap: after it, U is worth 1,000 points. The HUD pips show each chain's tier (blue / orange / red / pink).
 - **Homing missiles** from the **extremely rare orange H** pickup: **one H always drops each time you drive off the mothership**, and any other destroyed enemy, ground vehicle or train car has just a **0.1% chance** (1 in 1,000) to drop one. The first H adds the MISSILE button (above SHIELD) firing 1 missile per salvo; each further H adds one more, up to **5 per salvo**. Missiles launch in a fan, accelerate, and home in on the nearest enemies (air units, ground vehicles or the mothership), switching to a new target if theirs is destroyed. After 5, an H is worth 5,000 points. The HUD shows `H#`.
 - **Wingmen** from rare green **W** pickups (Bulwarks drop one half the time). There are two wingmen, top and bottom, and each has its own level:
   - Levels 1–3: 1, 2, then 3 beams, **green** at 0.5× damage
@@ -97,7 +106,7 @@ Fast ground units race in from off-screen left (a blinking **!** chevron at the 
 | Turbine tank (3 tiers) | 4 | Six stiff road wheels, scrolling tracks and gas-turbine exhaust that flares with throttle. Parks at random spots between 45% and 25% in from the right edge, moving to a new one every few seconds. It swings its huge turret anywhere and **shells you across the entire screen** (exempt from the right-40% targeting limit), and paints a **red crosshair** with a blast-radius circle where it predicts you'll be. The crosshair locks and flashes, then a fast tracer shell detonates there in a big blast. Heavy muzzle blast and recoil. Comes in **three tiers**, each with faster targeting (turret swing plus the time from crosshair to lock to shot) and a faster shell. **Blue-grey** (from wave 4): 0.7× targeting, 1× shell. **Purple** (from wave 8): 1× targeting, 1.25× shell. **Dark blood red** (from wave 12): 1.5× targeting, 1.5× shell. A new tier always shows up on its debut wave; after that each tank is a random unlocked tier. |
 | Missile train (red) | 6 | A locomotive pulling 3 launcher cars (4 from wave 10) on spring couplings that bunch up and stretch apart. Each car fires **wave-path missiles**: they pop up, lock a heading, then snake toward you along a sine wave that slowly homes. Dotted lines preview the path ahead. Missiles can be shot down. Destroying a launcher car disables it; destroying the locomotive (20 HP, half its old toughness) blows up the whole train, car by car. |
 
-The shield stops all of this ordnance (shells fizzle on the bubble), and both the shock and the dumb bomb damage vehicles. Tuning is under `VEHICLES` in `js/config.js`.
+A **purple or gold** shield stops all of this ordnance (shells fizzle on the bubble); a cyan one lets it through. Both the pulse and the dumb bomb damage vehicles. Tuning is under `VEHICLES` in `js/config.js`.
 
 **Testing tip:** add `?wave=N` to the URL to start a game at wave N, for example `.../Games/?wave=6` to meet the train right away.
 
@@ -143,7 +152,7 @@ After every 5th wave a warning sounds and the **mothership** moves in on the rig
 
 1. **Heat-up:** the emitter on its nose glows from red to white, a dashed red line and a shaded danger band show exactly where the beam will go, and the ship slides up or down to line up with you.
 2. **Lock:** about half a second before firing, the aim freezes and the line flashes white and red. That's your cue to move out of the band.
-3. **Fire:** a thick beam crosses the whole screen for a second. **The shield doesn't stop it**, so you have to dodge. It also destroys wingmen and kills you if you touch the hull.
+3. **Fire:** a thick beam crosses the whole screen for a second. **Only a gold shield (level 9+) stops it**; otherwise you have to dodge. It also destroys wingmen and kills you if you touch the hull.
 
 It also launches small swarms from its hangar. Shoot the hull enough (its meter is at the top of the screen) and it **retreats** for a big bonus and drops pickups. It isn't destroyed. It comes back after the next 5 waves with more hull and new abilities:
 

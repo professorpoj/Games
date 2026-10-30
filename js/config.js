@@ -25,9 +25,9 @@ export const PLAYER = {
   invulnTime: 2.5,
   respawnDelay: 1.3,
   startLives: 3,
-  startShocks: 2,        // SHOCK rounds (S pickups add one)
+  startPulses: 2,        // pulse rounds (P pickups add one)
   startBombs: 3,         // dumb bombs (B pickups add one)
-  maxAmmo: 5,            // most shocks / bombs you can carry
+  maxAmmo: 5,            // most pulses / bombs you can carry
   maxPower: 4,
   deathPowerLoss: 2,     // P pickups' worth of weapon power lost when the ship is destroyed
 };
@@ -78,13 +78,13 @@ export const WINGMAN = {
   bombCrowd: 7,          // wingmen launch their bombs while MORE than this many enemies are on screen
 };
 
-// SHOCK button: a shockwave that sweeps the whole screen, hitting every enemy once.
-export const SHOCK = { damage: 14, vehicleDamage: 14, bossDamage: 20 };
+// PULSE button: a shockwave that sweeps the whole screen, hitting every enemy once.
+export const PULSE = { damage: 14, vehicleDamage: 14, bossDamage: 20 };
 
 // BOMB button: a very heavy dumb bomb. It leaves the ship with the ship's own
 // velocity, then only gravity acts on it (no air resistance), so it arcs like a
 // real drop. It explodes on contact with the ground or anything it hits; damage
-// falls off linearly from `mul` x the shock's at the impact point to 0 at `radius`.
+// falls off linearly from `mul` x the pulse's at the impact point to 0 at `radius`.
 export const BOMB = {
   gravity: 700,          // units/s^2, the same for any mass without air drag
   mul: 3,
@@ -95,9 +95,20 @@ export const BOMB = {
 
 // Tap SHIELD to raise a bubble that destroys enemy bullets touching it.
 // It drains while up and recharges 5x slower than it drains.
+// Shield levels come from cyan S pickups (you start at level 1 and keep your level
+// when you lose a ship). Each tier has four levels lasting 3, 5, 8 then 10 s on a
+// full meter; the next tier starts over at 3 s but blocks more:
+//   cyan   (levels 1-4):  enemy shots
+//   purple (levels 5-8):  + bombs and blasts (mortars, tank shells, train missiles)
+//   gold   (levels 9-12): + the mothership's beam
 export const SHIELD = {
-  duration: 4,           // seconds a full meter lasts
-  rechargeRatio: 5,      // full recharge takes duration x this (20 s)
+  durations: [3, 5, 8, 10], // seconds a full meter lasts, by level within a tier
+  colors: ['#7df9ff', '#c77dff', '#ffd23f'],
+  names: ['CYAN', 'PURPLE', 'GOLD'],
+  maxLevel: 12,
+  bonus: 3000,           // points for an S once the shield is maxed
+  dropMul: 0.2,          // S drop chance = enemy drop chance x this
+  rechargeRatio: 5,      // full recharge takes the duration x this
   minToActivate: 0.15,   // meter needed to raise it again
   radius: 30,
   wingRadius: 16,        // smaller bubble around each wingman while the shield is up
@@ -181,6 +192,6 @@ export const SWARM_GROWTH = { perWave: 1, maxSize: 40 };
 export const BULLET_DENSITY = { calm: 50, max: 120, nearR: 160, nearWeight: 2 };
 export const ENEMY_BULLET_CAP = 220;  // hard backstop
 export const EXTRA_LIFE_EVERY = 75000;
-// Every chance of a P (weapon power) pickup is scaled by this: 0.35 = 35% of the original rate.
-export const P_DROP_RATE = 0.35;
+// Every chance of a U (weapon upgrade) pickup is scaled by this: 0.35 = 35% of the original rate.
+export const U_DROP_RATE = 0.35;
 export const CHAIN_WINDOW = 1.4;

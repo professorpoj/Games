@@ -35,6 +35,7 @@ export class Player {
     this.respawnTimer = 0;
     this.shield = 1;        // meter, 0..1
     this.shieldOn = false;
+    this.shieldLevel = 1;   // 1-12 from S pickups (see SHIELD)
     // [0] flies above the ship, [1] below.
     // level 0 = no wingman in that slot.
     this.wings = [-1, 1].map((side) => ({ side, level: 0, x: 0, y: 0, px: 0, py: 0, bombCd: 0, invuln: 0 }));
@@ -95,6 +96,20 @@ export class Player {
     }
   }
 
+  /** 0 cyan (stops shots), 1 purple (+ bombs and blasts), 2 gold (+ the mothership beam). */
+  get shieldTier() {
+    return Math.floor((this.shieldLevel - 1) / SHIELD.durations.length);
+  }
+
+  /** Seconds a full meter lasts at the current level. */
+  get shieldDuration() {
+    return SHIELD.durations[(this.shieldLevel - 1) % SHIELD.durations.length];
+  }
+
+  get shieldColor() {
+    return SHIELD.colors[this.shieldTier];
+  }
+
   /** Tap to raise, tap again to drop early. */
   toggleShield() {
     if (this.shieldOn) {
@@ -108,14 +123,14 @@ export class Player {
 
   updateShield(dt) {
     if (this.shieldOn) {
-      this.shield -= dt / SHIELD.duration;
+      this.shield -= dt / this.shieldDuration;
       if (this.shield <= 0) {
         this.shield = 0;
         this.shieldOn = false;
         this.game.sfx.play('shieldDown');
       }
     } else {
-      this.shield = Math.min(1, this.shield + dt / (SHIELD.duration * SHIELD.rechargeRatio));
+      this.shield = Math.min(1, this.shield + dt / (this.shieldDuration * SHIELD.rechargeRatio));
     }
   }
 

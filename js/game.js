@@ -1,6 +1,6 @@
 import {
   VIEW_H, MIN_ASPECT, MAX_ASPECT, MAX_DPR, SCROLL_SPEED, PLAYER,
-  ENEMY_BULLET_CAP, BULLET_DENSITY, EXTRA_LIFE_EVERY, SHOCK, BOMB, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE, P_DROP_RATE, HOMING, MOTHERSHIP,
+  ENEMY_BULLET_CAP, BULLET_DENSITY, EXTRA_LIFE_EVERY, PULSE, BOMB, CHAIN_WINDOW, WINGMAN, SHIELD, OVERDRIVE, U_DROP_RATE, HOMING, MOTHERSHIP,
 } from './config.js';
 import { Pool, compact, clamp, rand, damp, segDist2, TAU } from './utils.js';
 import { Input } from './input.js';
@@ -17,8 +17,8 @@ import { ORDNANCE, ORDNANCE_R, updateOrdnance, applyWells, wellPull, drawOrdnanc
 import { Sfx } from './audio.js';
 import { drawHud, drawControls } from './hud.js';
 
-const BULLET_R = { orb: 5, big: 8, needle: 3.5, missile: 6, ...ORDNANCE_R };
-const POWERUP_COLOR = { P: '#ffd23f', B: '#ffb347', S: '#ff5fd2', W: '#5dff7a', H: '#ff7b3a' };
+const BULLET_R = { orb: 5, big: 8, needle: 3.5, missile: 6, mortar: 6, shell: 5, wave: 6, ...ORDNANCE_R };
+const POWERUP_COLOR = { U: '#ffd23f', B: '#ffb347', P: '#ff5fd2', S: '#7df9ff', W: '#5dff7a', H: '#ff7b3a' };
 const PLAYER_SHOT_R = { shot: 5, orange: 5, red: 5, wing: 4, wblue: 4, worange: 4, wred: 4, wbomb: 7, pmissile: 5, pbomb: 6 };
 const WING_BOLT_COLOR = { wing: '#5dff7a', wblue: '#4cc9f0', worange: '#ff9a2e', wred: '#ff3b3b' };
 const NEON = '#ff3ec8';
@@ -94,7 +94,7 @@ export class Game {
     this.flash = 0;
     this.timeScale = 1;
     this.banner = null;
-    this.shock = null;
+    this.pulse = null;
     this.mothership = null;
     this.debug = /[?&]debug/.test(location.search);
     this.fps = 60;
@@ -175,13 +175,13 @@ export class Game {
     this.particles.clear();
     this.score = 0;
     this.lives = PLAYER.startLives;
-    this.shocks = PLAYER.startShocks;
+    this.pulses = PLAYER.startPulses;
     this.bombs = PLAYER.startBombs;
     this.chain = 0;
     this.chainTimer = 0;
     this.nextLife = EXTRA_LIFE_EVERY;
     this.banner = null;
-    this.shock = null;
+    this.pulse = null;
     this.mothership = null;
     this.gameOverTimer = 0;
     this.timeScale = 1;
@@ -195,6 +195,7 @@ export class Game {
     this.player.bombCd = 0;
     this.player.shield = 1;
     this.player.shieldOn = false;
+    this.player.shieldLevel = 1;
     this.director.reset(demo);
     if (demo) {
       this.player.alive = false;
@@ -238,12 +239,12 @@ export class Game {
     if (Math.random() < HOMING.dropChance) this.spawnPowerup('H', x + 15, y - 30);
     if (!v) return;
     if (v.kind === 'tank') {
-      this.maybeDropP(x, y - 20);
+      this.maybeDropU(x, y - 20);
       if (Math.random() < 0.4) this.spawnPowerup('W', x + 20, y - 40);
     } else if (v.kind === 'train') {
       this.spawnPowerup('W', x, y - 30);
-      this.maybeDropP(x - 30, y - 20);
-    } else this.maybeDropP(x, y - 20, 0.35);
+      this.maybeDropU(x - 30, y - 20);
+    } else this.maybeDropU(x, y - 20, 0.35);
   }
 
   startMothership(visit) {
@@ -291,9 +292,9 @@ export class Game {
     return b;
   }
 
-  /** Roll for a P pickup: `chance` is scaled by P_DROP_RATE so P stays rare. */
-  maybeDropP(x, y, chance = 1) {
-    if (Math.random() < chance * P_DROP_RATE) this.spawnPowerup('P', x, y);
+  /** Roll for a U (weapon upgrade) pickup: `chance` is scaled by U_DROP_RATE so U stays rare. */
+  maybeDropU(x, y, chance = 1) {
+    if (Math.random() < chance * U_DROP_RATE) this.spawnPowerup('U', x, y);
   }
 
   spawnPowerup(kind, x, y) {
@@ -339,15 +340,17 @@ export class Game {
     this.shake = Math.max(this.shake, big ? 12 : 2.5);
     if (this.player.alive) this.addScore(e.def.score * (e.enhanced ? ENHANCED_SCORE : 1), e.x, e.y);
     if (big) {
-      this.maybeDropP(e.x, e.y);
+      this.maybeDropU(e.x, e.y);
       if (Math.random() < 0.4) this.spawnPowerup('B', e.x - 15, e.y + 20);
-      if (Math.random() < 0.4) this.spawnPowerup('S', e.x + 15, e.y + 20);
+      if (Math.random() < 0.4) this.spawnPowerup('P', e.x + 15, e.y + 20);
+      if (Math.random() < 0.3) this.spawnPowerup('S', e.x, e.y - 30);
     } else {
-      // P, B (bomb) and S (shock) roll separately, each at its own rate.
+      // U, B (bomb) and P (pulse) roll separately, each at its own rate.
       const drop = e.def.drop * (e.enhanced ? 2 : 1);
-      this.maybeDropP(e.x, e.y, drop * 0.72);
+      this.maybeDropU(e.x, e.y, drop * 0.72);
       if (Math.random() < drop * 0.28) this.spawnPowerup('B', e.x, e.y);
-      if (Math.random() < drop * 0.28) this.spawnPowerup('S', e.x, e.y + 14);
+      if (Math.random() < drop * 0.28) this.spawnPowerup('P', e.x, e.y + 14);
+      if (Math.random() < drop * SHIELD.dropMul) this.spawnPowerup('S', e.x + 14, e.y);
     }
     // Very rare homing-missile pickup from any enemy.
     if (Math.random() < HOMING.dropChance) this.spawnPowerup('H', e.x, e.y + 20);
@@ -358,7 +361,7 @@ export class Game {
       const bonus = e.swarm.total * 100;
       this.score += bonus;
       this.particles.text(e.x, e.y - 34, `SWARM WIPED +${bonus}`, '#7dffcf', 15);
-      this.maybeDropP(e.x, e.y, 0.5);
+      this.maybeDropU(e.x, e.y, 0.5);
     }
   }
 
@@ -386,15 +389,15 @@ export class Game {
     if (this.lives <= 0) this.gameOverTimer = 2;
   }
 
-  useShock() {
+  usePulse() {
     const p = this.player;
-    if (!p.alive || this.shocks <= 0 || this.shock) return;
-    this.shocks--;
-    // The shock only hits enemy ships; bullets are the shield's job.
-    this.shock = { x: p.x, y: p.y, r: 0, t: 0, dur: 0.75, hit: new Set() };
+    if (!p.alive || this.pulses <= 0 || this.pulse) return;
+    this.pulses--;
+    // The pulse only hits enemy ships; bullets are the shield's job.
+    this.pulse = { x: p.x, y: p.y, r: 0, t: 0, dur: 0.75, hit: new Set() };
     this.shake = 12;
     this.flash = 0.25;
-    this.sfx.play('shock');
+    this.sfx.play('pulse');
   }
 
   /** Let go of a dumb bomb: it keeps the ship's velocity at the moment of release. */
@@ -409,7 +412,7 @@ export class Game {
 
   /**
    * Dumb bomb impact. Damage scales linearly with distance from the impact point
-   * (measured to each target's nearest edge): BOMB.mul x the shock at 0, nothing
+   * (measured to each target's nearest edge): BOMB.mul x the pulse at 0, nothing
    * at BOMB.radius. The blast also shoves enemy ships and rocks vehicles.
    */
   bombBlast(x, y) {
@@ -422,7 +425,7 @@ export class Game {
       if (k <= 0) continue;
       e.vx += (dx / dist) * BOMB.knockback * k;
       e.vy += (dy / dist) * BOMB.knockback * k;
-      this.damageEnemy(e, SHOCK.damage * M * k, e.x, e.y);
+      this.damageEnemy(e, PULSE.damage * M * k, e.x, e.y);
     }
     for (const v of this.vehicles) {
       const kicked = new Set();
@@ -432,9 +435,9 @@ export class Game {
         const cx = clamp(x, bx.x0, bx.x1), cy = clamp(y, bx.y0, bx.y1);
         const k = scale(Math.hypot(x - cx, y - cy));
         if (k <= 0) continue;
-        v.damage(part, SHOCK.vehicleDamage * M * k, cx, cy);
+        v.damage(part, PULSE.vehicleDamage * M * k, cx, cy);
         if (!kicked.has(part.ch)) {
-          // Shock under the suspension: bounce the body and pitch it away from the blast.
+          // Pulse under the suspension: bounce the body and pitch it away from the blast.
           kicked.add(part.ch);
           part.ch.vy -= 260 * k;
           part.ch.pv += Math.sign(part.ch.x - x || 1) * 2.5 * k;
@@ -446,7 +449,7 @@ export class Game {
       const ex = (x - ms.x) / MOTHERSHIP.rx, ey = (y - ms.y) / MOTHERSHIP.ry, q = Math.hypot(ex, ey);
       const dist = Math.hypot(x - ms.x, y - ms.y);
       const k = scale(q <= 1 ? 0 : dist * (1 - 1 / q));
-      if (k > 0) ms.damage(SHOCK.bossDamage * M * k, x, y);
+      if (k > 0) ms.damage(PULSE.bossDamage * M * k, x, y);
     }
     // Fireball plus a ring showing the full damage radius, and dirt thrown up.
     blast(this, x, y, 72, '#ffb347', false);
@@ -488,11 +491,11 @@ export class Game {
         this.pause();
         return;
       }
-      if (input.consumeShock()) this.useShock();
+      if (input.consumePulse()) this.usePulse();
       if (input.consumeBomb()) this.dropBomb();
       if (input.consumeShield()) this.player.toggleShield();
     } else {
-      input.consumeShock();
+      input.consumePulse();
       input.consumeBomb();
       input.consumeShield();
     }
@@ -511,7 +514,7 @@ export class Game {
     this.updateBullets(dt);
     applyWells(this, dt);
     this.updatePowerups(dt);
-    this.updateShock(dt);
+    this.updatePulse(dt);
     this.collide();
     this.particles.update(dt);
     this.bg.tick(dt);
@@ -542,7 +545,7 @@ export class Game {
     p.py = p.y;
     if (this.state === 'playing' && this.lives > 0 && p.respawnTimer > 0 && (p.respawnTimer -= dt) <= 0) {
       p.spawn();
-      this.shocks = Math.max(this.shocks, PLAYER.startShocks);
+      this.pulses = Math.max(this.pulses, PLAYER.startPulses);
       this.bombs = Math.max(this.bombs, PLAYER.startBombs);
       this.clearEnemyBullets(true);
     }
@@ -842,7 +845,7 @@ export class Game {
         this.score += HOMING.bonus;
         this.particles.text(p.x, p.y - 26, `+${HOMING.bonus}`, POWERUP_COLOR.H, 14);
       }
-    } else if (u.kind === 'P') {
+    } else if (u.kind === 'U') {
       if (p.power < PLAYER.maxPower) {
         p.power++;
         this.particles.text(p.x, p.y - 26, p.power === PLAYER.maxPower ? 'MAX POWER' : 'POWER UP', '#ffd23f', 14);
@@ -877,16 +880,27 @@ export class Game {
         this.particles.text(p.x, p.y - 26, '+2000', '#5dff7a', 14);
       }
     } else if (u.kind === 'S') {
-      this.shocks = Math.min(this.shocks + 1, PLAYER.maxAmmo);
-      this.particles.text(p.x, p.y - 26, 'SHOCK +1', '#ff5fd2', 14);
+      if (p.shieldLevel < SHIELD.maxLevel) {
+        p.shieldLevel++;
+        const tier = p.shieldTier, newTier = (p.shieldLevel - 1) % SHIELD.durations.length === 0;
+        const msg = !newTier ? `SHIELD ${p.shieldDuration}s`
+          : tier === 1 ? 'PURPLE SHIELD: BLOCKS BOMBS' : 'GOLD SHIELD: BLOCKS THE MOTHERSHIP BEAM';
+        this.particles.text(p.x, p.y - 26, msg, p.shieldColor, 14);
+      } else {
+        this.score += SHIELD.bonus;
+        this.particles.text(p.x, p.y - 26, `+${SHIELD.bonus}`, p.shieldColor, 14);
+      }
+    } else if (u.kind === 'P') {
+      this.pulses = Math.min(this.pulses + 1, PLAYER.maxAmmo);
+      this.particles.text(p.x, p.y - 26, 'PULSE +1', '#ff5fd2', 14);
     } else {
       this.bombs = Math.min(this.bombs + 1, PLAYER.maxAmmo);
       this.particles.text(p.x, p.y - 26, 'BOMB +1', '#ffb347', 14);
     }
   }
 
-  updateShock(dt) {
-    const bm = this.shock;
+  updatePulse(dt) {
+    const bm = this.pulse;
     if (!bm) return;
     bm.t += dt;
     const k = Math.min(1, bm.t / bm.dur);
@@ -897,7 +911,7 @@ export class Game {
       const dx = e.x - bm.x, dy = e.y - bm.y;
       if (dx * dx + dy * dy < r2) {
         bm.hit.add(e);
-        this.damageEnemy(e, SHOCK.damage, e.x, e.y);
+        this.damageEnemy(e, PULSE.damage, e.x, e.y);
       }
     }
     for (const v of this.vehicles) {
@@ -905,16 +919,16 @@ export class Game {
         if (!part.alive || bm.hit.has(part)) continue;
         if (Math.hypot(part.ch.x - bm.x, part.ch.y - bm.y) < bm.r) {
           bm.hit.add(part);
-          v.damage(part, SHOCK.vehicleDamage, part.ch.x, part.ch.y - part.top / 2);
+          v.damage(part, PULSE.vehicleDamage, part.ch.x, part.ch.y - part.top / 2);
         }
       }
     }
     const ms = this.mothership;
     if (ms && !bm.hitBoss && Math.hypot(ms.x - bm.x, ms.y - bm.y) - 110 < bm.r) {
       bm.hitBoss = true;
-      ms.damage(SHOCK.bossDamage, ms.x - 100, ms.y);
+      ms.damage(PULSE.bossDamage, ms.x - 100, ms.y);
     }
-    if (bm.t >= bm.dur) this.shock = null;
+    if (bm.t >= bm.dur) this.pulse = null;
   }
 
   /** Wingman bomb: splash damage and clears nearby enemy bullets. */
@@ -943,7 +957,7 @@ export class Game {
     }
   }
 
-  /** Destroy every enemy bullet (missiles included) that touches the shield bubble. */
+  /** Destroy the enemy rounds touching the shield bubble that its tier can stop. */
   shieldBlock() {
     const p = this.player;
     this.shieldBubble(p.x, p.y, SHIELD.radius);
@@ -951,8 +965,11 @@ export class Game {
   }
 
   shieldBubble(x, y, R) {
+    const tier = this.player.shieldTier, color = this.player.shieldColor;
     for (const b of this.eBullets.list) {
       if (b.dead || b.kind === 'well') continue;
+      // A cyan shield only stops shots: bombs pass through it (purple and up stop them).
+      if (tier < 1 && HEAVY.has(b.kind)) continue;
       const rr = R + b.r;
       if (segDist2(x, y, b.px, b.py, b.x, b.y) < rr * rr) {
         b.dead = true;
@@ -961,7 +978,7 @@ export class Game {
           continue;
         }
         const a = Math.atan2(b.y - y, b.x - x);
-        this.particles.add('spark', x + Math.cos(a) * R, y + Math.sin(a) * R, Math.cos(a) * 160, Math.sin(a) * 160, 0.2, 2, '#7df9ff');
+        this.particles.add('spark', x + Math.cos(a) * R, y + Math.sin(a) * R, Math.cos(a) * 160, Math.sin(a) * 160, 0.2, 2, color);
         this.sfx.play('deflect');
       }
     }
@@ -1272,8 +1289,8 @@ export class Game {
       v.drawIncoming(ctx, t);
     }
 
-    if (this.shock) {
-      const bm = this.shock, k = bm.t / bm.dur;
+    if (this.pulse) {
+      const bm = this.pulse, k = bm.t / bm.dur;
       ctx.strokeStyle = `rgba(255,95,210,${1 - k})`;
       ctx.lineWidth = 18 * (1 - k) + 2;
       ctx.beginPath();
@@ -1317,22 +1334,23 @@ export class Game {
     const p = this.player;
     // Flicker as a warning when the meter is nearly empty.
     if (p.shield < 0.2 && Math.floor(t * 16) % 2) return;
-    this.drawBubble(ctx, L(p.px, p.x), L(p.py, p.y), SHIELD.radius, t);
-    for (const w of p.wings) if (w.level) this.drawBubble(ctx, L(w.px, w.x), L(w.py, w.y), SHIELD.wingRadius, t);
+    const c = p.shieldColor;
+    this.drawBubble(ctx, L(p.px, p.x), L(p.py, p.y), SHIELD.radius, t, c);
+    for (const w of p.wings) if (w.level) this.drawBubble(ctx, L(w.px, w.x), L(w.py, w.y), SHIELD.wingRadius, t, c);
   }
 
-  drawBubble(ctx, x, y, radius, t) {
+  drawBubble(ctx, x, y, radius, t, color) {
     const r = radius + Math.sin(t * 9) * 1.5;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.drawImage(this.sprites.glow('#7df9ff', r / 2), x - r, y - r, r * 2, r * 2);
+    ctx.drawImage(this.sprites.glow(color, r / 2), x - r, y - r, r * 2, r * 2);
     ctx.globalAlpha = 0.25;
-    ctx.fillStyle = '#7df9ff';
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, TAU);
     ctx.fill();
     ctx.globalAlpha = 0.9;
-    ctx.strokeStyle = '#c8fdff';
+    ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.restore();

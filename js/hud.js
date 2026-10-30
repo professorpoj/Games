@@ -30,11 +30,11 @@ export function drawHud(ctx, g) {
   ctx.font = `700 22px ${MONO}`;
   shadowText(ctx, String(g.score).padStart(7, '0'), L, T);
 
-  // Lives, shock rounds (S), bombs (B), weapon power.
+  // Lives, pulse rounds (P), bombs (B), weapon power.
   ctx.fillStyle = '#c9f2ff';
   for (let i = 0; i < g.lives; i++) miniShip(ctx, L + 8 + i * 22, T + 40, 1);
   let bx = L + Math.max(g.lives, 1) * 22 + 14;
-  for (const [n, letter, color] of [[g.shocks, 'S', '#ff5fd2'], [g.bombs, 'B', '#ffb347']]) {
+  for (const [n, letter, color] of [[g.pulses, 'P', '#ff5fd2'], [g.bombs, 'B', '#ffb347']]) {
     for (let i = 0; i < n; i++, bx += 18) {
       ctx.fillStyle = color;
       ctx.beginPath();
@@ -79,8 +79,10 @@ export function drawHud(ctx, g) {
   const ready = p.shield >= SHIELD.minToActivate;
   ctx.fillStyle = 'rgba(255,255,255,0.18)';
   ctx.fillRect(L, T + 64, 42, 5);
-  ctx.fillStyle = p.shieldOn ? '#ffffff' : ready ? '#7df9ff' : '#3b6f73';
+  ctx.fillStyle = p.shieldOn ? '#ffffff' : hexToRgba(p.shieldColor, ready ? 1 : 0.4);
   ctx.fillRect(L, T + 64, 42 * p.shield, 5);
+  ctx.font = `800 10px ${SANS}`;
+  shadowText(ctx, `S${p.shieldLevel} ${p.shieldDuration}s`, L + 48, T + 63, p.shieldColor);
 
   // Chain multiplier.
   if (g.chain > 1) {
@@ -158,9 +160,10 @@ function drawShieldButton(ctx, b, p) {
   const ready = p.shield >= SHIELD.minToActivate;
   const base = ctx.globalAlpha;
   ctx.globalAlpha = base * (ready || p.shieldOn ? 1 : 0.45);
-  drawButton(ctx, b, p.shieldOn ? 'ON' : `${Math.floor(p.shield * 100)}%`, b.down || p.shieldOn);
+  // The button takes the shield's tier colour (cyan, purple, gold).
+  drawButton(ctx, { ...b, color: p.shieldColor }, p.shieldOn ? 'ON' : `${Math.floor(p.shield * 100)}%`, b.down || p.shieldOn);
   // Meter ring around the button.
-  ctx.strokeStyle = p.shieldOn ? '#ffffff' : '#7df9ff';
+  ctx.strokeStyle = p.shieldOn ? '#ffffff' : p.shieldColor;
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.arc(b.x, b.y, b.r + 6, -Math.PI / 2, -Math.PI / 2 + p.shield * TAU);
@@ -257,10 +260,10 @@ export function drawControls(ctx, g) {
   drawButton(ctx, b.fire, g.settings.autoFire ? 'AUTO' : '');
   drawShieldButton(ctx, b.shield, g.player);
   if (g.player.homing > 0) drawMissileButton(ctx, b.missile, g.player);
-  // Shock and bomb run on ammo: their buttons dim when empty.
+  // Pulse and bomb run on ammo: their buttons dim when empty.
   const base = ctx.globalAlpha;
-  ctx.globalAlpha = base * (g.shocks > 0 ? 1 : 0.4);
-  drawButton(ctx, b.shock, `x${g.shocks}`);
+  ctx.globalAlpha = base * (g.pulses > 0 ? 1 : 0.4);
+  drawButton(ctx, b.pulse, `x${g.pulses}`);
   ctx.globalAlpha = base * (g.bombs > 0 ? 1 : 0.4);
   drawButton(ctx, b.bomb, `x${g.bombs}`);
   ctx.globalAlpha = 1;

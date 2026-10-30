@@ -56,6 +56,7 @@ export class Player {
       w.x = w.px = this.x;
       w.y = w.py = this.y;
       w.bombCd = 0;
+      w.invuln = PLAYER.invulnTime; // surviving wingmen fly back in with the ship
     }
   }
 
@@ -85,9 +86,12 @@ export class Player {
   }
 
   /** Death penalty: lose one P level (an overdrive step first, then weapon power). */
-  losePowerLevel() {
-    if (this.overdrive > 0) this.overdrive--;
-    else this.power = Math.max(1, this.power - 1);
+  /** Undo `n` P pickups: the last overdrive steps first, then weapon power levels. */
+  losePowerLevels(n) {
+    for (let i = 0; i < n; i++) {
+      if (this.overdrive > 0) this.overdrive--;
+      else this.power = Math.max(1, this.power - 1);
+    }
   }
 
   /** Tap to raise, tap again to drop early. */

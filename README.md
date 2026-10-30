@@ -40,7 +40,7 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 
 - **Fixed 120 Hz simulation with render interpolation.** Movement and collisions behave the same on 60, 90 and 120 Hz screens.
 - **Precise ship.** It speeds up and slows down quickly, stops at the screen edges without bouncing, and has a tiny 4-unit hitbox. Fast bullets use swept collision so they can't pass through you between frames.
-- **Weapon power 1–4** from **P** pickups, which are deliberately rare (every P drop chance is scaled by `P_DROP_RATE` in `js/config.js`, currently 0.35, i.e. 35% of the original rate). **B** pickups add bombs. **Losing a ship costs one P level** (the last overdrive step first, then a weapon power level).
+- **Weapon power 1–4** from **P** pickups, which are deliberately rare (every P drop chance is scaled by `P_DROP_RATE` in `js/config.js`, currently 0.35, i.e. 35% of the original rate). **B** pickups add bombs. **Losing a ship costs two P levels** (the last overdrive steps first, then weapon power levels).
 - **Overdrive** (P pickups after max power): at max power your gun fires 7 beam chains. Each extra **P** upgrades one chain, starting with the centre and working outward top/bottom. Damage is relative to the original blue bolt:
   - **Blue** (normal bolts): **0.8×**.
   - **Orange** (P #1–7 past max): **1×**.
@@ -58,7 +58,7 @@ To run it locally: `python3 -m http.server` in this folder, then open http://loc
 
   Each W goes to the weaker wingman, so a lost wingman is rebuilt first until it matches the other. When they're equal, upgrades alternate between them (top, bottom, top...). Once both are at level 16, each W is worth 2,000 points. The HUD shows their levels as `W top/bottom`.
 
-  Wingmen die like your ship does: one enemy bullet or collision. When one goes down the other keeps flying, and a newly joined wingman gets 1.5 s of protection. The shield gives each wingman its own small bubble. Losing your ship destroys both wingmen. Tuning is under `WINGMAN` in `js/config.js`.
+  Wingmen get hit like your ship does: one enemy bullet or collision. **A hit costs that wingman 3 levels** (it blinks for 1.5 s of protection) and it keeps flying; it's only **lost** if the hit takes it below level 1 (so a wingman at level 3 or lower is destroyed). **Losing your ship costs each wingman 3 levels the same way**, and the survivors fly back in with you when you respawn. A newly joined wingman gets 1.5 s of protection. The shield gives each wingman its own small bubble. Tuning is under `WINGMAN` in `js/config.js` (`hitLevelLoss`) and `PLAYER.deathPowerLoss`.
 - **Chain multiplier** for quick kills in a row, a bonus for wiping out a whole swarm, a bonus for clearing a wave, and an extra ship every 75,000 points.
 - Brief slow motion and screen shake when you're hit. After respawning you're invulnerable for a moment.
 

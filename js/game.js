@@ -374,11 +374,10 @@ export class Game {
       /* unsupported */
     }
     this.lives--;
-    // Losing a ship wipes out the wingmen (rebuild them with W pickups);
-    // the ship's own weapon power is kept.
-    for (const w of p.wings) if (w.level) this.particles.explosion(w.x, w.y, '#5dff7a', 0.8);
-    p.clearWings();
-    p.losePowerLevel();
+    // Losing a ship costs weapon power, and each wingman takes the same hit as
+    // being shot down (survivors rejoin when the ship respawns).
+    for (const w of p.wings) if (w.level) this.wingmanHit(w);
+    p.losePowerLevels(PLAYER.deathPowerLoss);
     this.chain = 0;
     if (this.lives <= 0) this.gameOverTimer = 2;
   }
@@ -920,10 +919,23 @@ export class Game {
     }
   }
 
+  /** A wingman hit by enemy fire (ignored while your ship is down: they're off screen with it). */
   wingmanDown(w) {
-    w.level = 0;
-    this.particles.explosion(w.x, w.y, '#5dff7a', 1.3);
-    this.particles.text(w.x, w.y - 18, 'WINGMAN DOWN', '#ff6b6b', 13);
+    if (!this.player.alive || !w.level) return;
+    this.wingmanHit(w);
+  }
+
+  /** Costs the wingman WINGMAN.hitLevelLoss levels; it's only lost if that takes it below level 1. */
+  wingmanHit(w) {
+    w.level = Math.max(0, w.level - WINGMAN.hitLevelLoss);
+    if (w.level) {
+      w.invuln = WINGMAN.spawnInvuln;
+      this.particles.explosion(w.x, w.y, '#5dff7a', 0.6);
+      this.particles.text(w.x, w.y - 18, `WINGMAN -${WINGMAN.hitLevelLoss}`, '#ffd23f', 13);
+    } else {
+      this.particles.explosion(w.x, w.y, '#5dff7a', 1.3);
+      this.particles.text(w.x, w.y - 18, 'WINGMAN DOWN', '#ff6b6b', 13);
+    }
     this.sfx.play('explode');
     this.shake = Math.max(this.shake, 6);
     try {

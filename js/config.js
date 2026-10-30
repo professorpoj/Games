@@ -27,6 +27,7 @@ export const PLAYER = {
   startLives: 3,
   startBombs: 2,
   maxPower: 4,
+  deathPowerLoss: 2,     // P pickups' worth of weapon power lost when the ship is destroyed
 };
 
 // Overdrive: P pickups after max power upgrade the 7 beam chains one at a time,
@@ -60,6 +61,7 @@ export const WINGMAN = {
   bombLevel: 13,         // bombs unlock after both lasers
   maxLevel: 16,          // per wingman; once both are maxed, Ws give points
   hitRadius: 5,          // wingmen can be shot down or rammed, like your ship
+  hitLevelLoss: 3,       // levels a wingman loses when hit or when your ship dies (lost below level 1)
   spawnInvuln: 1.5,      // brief protection when a wingman (re)joins
   offsetX: -14,
   offsetY: 36,

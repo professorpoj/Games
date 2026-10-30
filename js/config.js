@@ -25,7 +25,9 @@ export const PLAYER = {
   invulnTime: 2.5,
   respawnDelay: 1.3,
   startLives: 3,
-  startPulses: 2,
+  startShocks: 2,        // SHOCK rounds (S pickups add one)
+  startBombs: 3,         // dumb bombs (B pickups add one)
+  maxAmmo: 5,            // most shocks / bombs you can carry
   maxPower: 4,
   deathPowerLoss: 2,     // P pickups' worth of weapon power lost when the ship is destroyed
 };
@@ -76,18 +78,18 @@ export const WINGMAN = {
   bombCrowd: 7,          // wingmen launch their bombs while MORE than this many enemies are on screen
 };
 
-// PULSE button: a shockwave that sweeps the whole screen, hitting every enemy once.
-export const PULSE = { damage: 14, vehicleDamage: 14, bossDamage: 20 };
+// SHOCK button: a shockwave that sweeps the whole screen, hitting every enemy once.
+export const SHOCK = { damage: 14, vehicleDamage: 14, bossDamage: 20 };
 
 // BOMB button: a very heavy dumb bomb. It leaves the ship with the ship's own
 // velocity, then only gravity acts on it (no air resistance), so it arcs like a
 // real drop. It explodes on contact with the ground or anything it hits; damage
-// falls off linearly from `mul` x the pulse's at the impact point to 0 at `radius`.
+// falls off linearly from `mul` x the shock's at the impact point to 0 at `radius`.
 export const BOMB = {
   gravity: 700,          // units/s^2, the same for any mass without air drag
   mul: 3,
   radius: 160,
-  cooldown: 3,           // seconds between drops
+  interval: 0.35,        // shortest gap between drops (stops a double tap wasting a bomb)
   knockback: 380,        // blast impulse on enemy ships at the impact point (units/s)
 };
 

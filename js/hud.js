@@ -1,4 +1,4 @@
-import { CONTROLS, PLAYER, SHIELD, OVERDRIVE, HOMING, BOMB } from './config.js';
+import { CONTROLS, PLAYER, SHIELD, OVERDRIVE, HOMING } from './config.js';
 import { TAU, hexToRgba } from './utils.js';
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
@@ -30,20 +30,23 @@ export function drawHud(ctx, g) {
   ctx.font = `700 22px ${MONO}`;
   shadowText(ctx, String(g.score).padStart(7, '0'), L, T);
 
-  // Lives, pulses, weapon power.
+  // Lives, shock rounds (S), bombs (B), weapon power.
   ctx.fillStyle = '#c9f2ff';
   for (let i = 0; i < g.lives; i++) miniShip(ctx, L + 8 + i * 22, T + 40, 1);
   let bx = L + Math.max(g.lives, 1) * 22 + 14;
-  for (let i = 0; i < g.pulses; i++) {
-    ctx.fillStyle = '#ff5fd2';
-    ctx.beginPath();
-    ctx.arc(bx + 7 + i * 18, T + 40, 6.5, 0, TAU);
-    ctx.fill();
-    ctx.fillStyle = '#1a0614';
-    ctx.font = `800 9px ${SANS}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('B', bx + 7 + i * 18, T + 40.5);
+  for (const [n, letter, color] of [[g.shocks, 'S', '#ff5fd2'], [g.bombs, 'B', '#ffb347']]) {
+    for (let i = 0; i < n; i++, bx += 18) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(bx + 7, T + 40, 6.5, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#1a0614';
+      ctx.font = `800 9px ${SANS}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(letter, bx + 7, T + 40.5);
+    }
+    if (n) bx += 8;
   }
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
@@ -165,19 +168,6 @@ function drawShieldButton(ctx, b, p) {
   ctx.globalAlpha = base;
 }
 
-function drawBombButton(ctx, b, p) {
-  const base = ctx.globalAlpha;
-  ctx.globalAlpha = base * (p.bombCd <= 0 ? 1 : 0.55);
-  drawButton(ctx, b, '');
-  // Reload ring.
-  ctx.strokeStyle = b.color;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(b.x, b.y, b.r + 5, -Math.PI / 2, -Math.PI / 2 + (1 - p.bombCd / BOMB.cooldown) * TAU);
-  ctx.stroke();
-  ctx.globalAlpha = base;
-}
-
 function drawMissileButton(ctx, b, p) {
   const ready = p.missileCd <= 0;
   const base = ctx.globalAlpha;
@@ -267,8 +257,11 @@ export function drawControls(ctx, g) {
   drawButton(ctx, b.fire, g.settings.autoFire ? 'AUTO' : '');
   drawShieldButton(ctx, b.shield, g.player);
   if (g.player.homing > 0) drawMissileButton(ctx, b.missile, g.player);
-  drawBombButton(ctx, b.bomb, g.player);
-  ctx.globalAlpha *= g.pulses > 0 ? 1 : 0.4;
-  drawButton(ctx, b.pulse, `x${g.pulses}`);
+  // Shock and bomb run on ammo: their buttons dim when empty.
+  const base = ctx.globalAlpha;
+  ctx.globalAlpha = base * (g.shocks > 0 ? 1 : 0.4);
+  drawButton(ctx, b.shock, `x${g.shocks}`);
+  ctx.globalAlpha = base * (g.bombs > 0 ? 1 : 0.4);
+  drawButton(ctx, b.bomb, `x${g.bombs}`);
   ctx.globalAlpha = 1;
 }

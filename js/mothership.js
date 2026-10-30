@@ -76,6 +76,7 @@ export class Mothership {
     for (let i = 0; i < 6; i++) g.particles.explosion(this.x + rand(-M.rx, M.rx) * 0.7, this.y + rand(-M.ry, M.ry) * 0.7, '#b46bff', 1.6);
     g.maybeDropP(this.x - M.rx, this.y - 30);
     g.spawnPowerup('B', this.x - M.rx, this.y + 30);
+    g.spawnPowerup('S', this.x - M.rx + 30, this.y + 60);
     g.spawnPowerup('W', this.x - M.rx - 30, this.y);
     // The only source of H (homing missiles): exactly one per mothership driven off.
     g.spawnPowerup('H', this.x - M.rx - 10, this.y - 60);
